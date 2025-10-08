@@ -1,64 +1,8 @@
-I/flutter ( 2026): [ChatService] Generated 80 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 90 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 100 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 110 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 120 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 130 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 140 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 150 tokens so far...
-I/flutter ( 2026): [ChatService] Generated 160 tokens so far...
-I/flutter ( 2026): [UI] ===== Stop generation triggered =====
-I/flutter ( 2026): [ChatService] ===== Stopping generation =====
-I/flutter ( 2026): [ChatService] Set cancellation flag
-I/flutter ( 2026): [ChatService] √ Stream subscription cancelled
-I/flutter ( 2026): [ChatService] √ Native generation stopped
-I/flutter ( 2026): [ChatService] √√√ Generation stopped successfully
-I/flutter ( 2026): [ChatService] ===== Stop generation complete =====
-I/flutter ( 2026): [UI] √ Generation stopped successfully
-I/flutter ( 2026): [UI] UI state updated after stop
-I/flutter ( 2026): [UI] ===== Stop generation complete =====
-D/InputMethodManager( 2026): showSoftInput() view=io.flutter.embedding.android.FlutterView{78f9512 VFE...... .F...... 0,0-1080,2400 #1 aid=1073741824} flags=0 reason=SHOW_SOFT_INPUT
-I/flutter ( 2026): [UI] ===== Send message triggered =====
-I/flutter ( 2026): [UI] Message text: "What are you seeing"
-I/flutter ( 2026): [UI] Clearing text field and sending message to chatService...
-I/flutter ( 2026): [ChatService] ===== Sending message with chat template =====
-I/flutter ( 2026): [ChatService] User message: "What are you seeing"
-I/flutter ( 2026): [ChatService] Set _isGenerating = true
-I/flutter ( 2026): [ChatService] Added user message to conversation history
-I/flutter ( 2026): [ChatService] Current conversation length: 3 messages
-I/flutter ( 2026): [ChatService] Starting generation with chat template:
-I/flutter ( 2026): [ChatService]   - messages: 3
-I/flutter ( 2026): [ChatService]   - maxTokens: 512
-I/flutter ( 2026): [ChatService]   - temperature: 0.7
-I/flutter ( 2026): [ChatService] Streaming tokens...
-I/flutter ( 2026): [UI] ===== Send message complete =====
-I/flutter ( 2026): [ChatService] XXX Error during message generation: Exception: Failed to decode prompt
-I/flutter ( 2026): [ChatService] Stack trace: #0      ChatService.sendMessage (package:chat_app/services/chat_service.dart:294:54)
-I/flutter ( 2026): <asynchronous suspension>
-I/flutter ( 2026): [ChatService] Removed failed user message from history
-I/flutter ( 2026): [ChatService] ===== Message processing complete =====
-E/flutter ( 2026): [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: PlatformException(RuntimeException, java.lang.RuntimeException: Failed to decode prompt, Cause: null, Stacktrace: java.lang.RuntimeException: Failed to decode prompt
-E/flutter ( 2026): 	at com.write4me.llama_flutter_android.LlamaFlutterAndroidPlugin.nativeGenerate(Native Method)
-E/flutter ( 2026): 	at com.write4me.llama_flutter_android.LlamaFlutterAndroidPlugin.access$nativeGenerate(LlamaFlutterAndroidPlugin.kt:10)
-E/flutter ( 2026): 	at com.write4me.llama_flutter_android.LlamaFlutterAndroidPlugin$generateChat$1.invokeSuspend(LlamaFlutterAndroidPlugin.kt:193)
-E/flutter ( 2026): 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-E/flutter ( 2026): 	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:101)
-E/flutter ( 2026): 	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:589)
-E/flutter ( 2026): 	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:832)
-E/flutter ( 2026): 	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:720)
-E/flutter ( 2026): 	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:707)
-E/flutter ( 2026): , null)
-E/flutter ( 2026): #0      LlamaHostApi.generateChat (package:llama_flutter_android/src/llama_api.dart:407:7)
-E/flutter ( 2026): <asynchronous suspension>
-E/flutter ( 2026):
-
-
-  flutter_lints 5.0.0 (6.0.0 available)
-Try `flutter pub outdated` for more information.
-Execution failed for task ':llama_flutter_android:buildCMakeDebug[arm64-v8a]'.
-> com.android.ide.common.process.ProcessException: ninja: Entering directory `C:\Users\ADMIN\Documents\HP\old_ssd\MY_FILES\flutter_projects\llama_flutter_android\android\.cxx\Debug\s2a6w5fg\arm64-v8a'
   C:\Users\ADMIN\AppData\Local\Android\Sdk\ndk\27.0.12077973\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=C:/Users/ADMIN/AppData/Local/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_BACKEND_SHARED -DGGML_SHARED -DGGML_USE_CPU -DLLAMA_SHARED -Dllama_jni_EXPORTS -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/src/../include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -O3 -fvisibility=hidden -Wl,-z,max-page-size=16384 -O3 -march=armv8-a+crc -fno-limit-debug-info  -fPIC -std=c++17 -MD -MT CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o -MF CMakeFiles\llama_jni.dir\src\main\cpp\jni_wrapper.cpp.o.d -o CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o -c C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp
-  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:417:5: error: use of undeclared identifier 'llama_kv_cache_seq_rm'
-  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:429:9: error: use of undeclared identifier 'llama_kv_cache_seq_rm'
+  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:183:16: error: no member named 'low_vram' in 'llama_context_params'
+  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:433:5: error: use of undeclared identifier 'llama_kv_cache_seq_rm'
+  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:445:9: error: use of undeclared identifier 'llama_kv_cache_seq_rm'
         "C:\\Users\\ADMIN\\Documents\\HP\\old_ssd\\MY_FILES\\flutter_projects\\llama_flutter_android\\android\\.cxx\\Debug\\s2a6w5fg\\arm64-v8a" ^
     from C:\Users\ADMIN\Documents\HP\old_ssd\MY_FILES\flutter_projects\llama_flutter_android\android
+
+CHAT
