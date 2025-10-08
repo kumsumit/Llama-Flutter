@@ -1,8 +1,2 @@
-
-import 'llama_flutter_android_platform_interface.dart';
-
-class LlamaFlutterAndroid {
-  Future<String?> getPlatformVersion() {
-    return LlamaFlutterAndroidPlatform.instance.getPlatformVersion();
-  }
-}
+export 'src/llama_controller.dart';
+export 'src/llama_api.dart' show ModelConfig, GenerateRequest, ChatMessage, ChatRequest;

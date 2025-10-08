@@ -1,0 +1,61 @@
+Resolving dependencies...
+Downloading packages...
+  characters 1.4.0 (1.4.1 available)
+  file_picker 8.3.7 (10.3.3 available)
+  flutter_lints 5.0.0 (6.0.0 available)
+  lints 5.1.1 (6.0.0 available)
+  material_color_utilities 0.11.1 (0.13.0 available)
+  meta 1.16.0 (1.17.0 available)
+  permission_handler 11.4.0 (12.0.1 available)
+  permission_handler_android 12.1.0 (13.0.1 available)
+  test_api 0.7.6 (0.7.7 available)
+Got dependencies!
+9 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Launching lib\main.dart on SM A528B in debug mode...
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':llama_flutter_android:buildCMakeDebug[arm64-v8a]'.
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `C:\Users\ADMIN\Documents\HP\old_ssd\MY_FILES\flutter_projects\llama_flutter_android\android\.cxx\Debug\s2a6w5fg\arm64-v8a'
+  [1/2] Building CXX object CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o
+  FAILED: CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o
+  C:\Users\ADMIN\AppData\Local\Android\Sdk\ndk\27.0.12077973\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android26 --sysroot=C:/Users/ADMIN/AppData/Local/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DGGML_BACKEND_SHARED -DGGML_SHARED -DGGML_USE_CPU -DLLAMA_SHARED -Dllama_jni_EXPORTS -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/src/../include -IC:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -O3 -fvisibility=hidden -Wl,-z,max-page-size=16384 -O3 -march=armv8-a+crc -fno-limit-debug-info  -fPIC -std=c++17 -MD -MT CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o -MF CMakeFiles\llama_jni.dir\src\main\cpp\jni_wrapper.cpp.o.d -o CMakeFiles/llama_jni.dir/src/main/cpp/jni_wrapper.cpp.o -c C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp
+  clang++: warning: -Wl,-z,max-page-size=16384: 'linker' input unused [-Wunused-command-line-argument]
+  C:/Users/ADMIN/Documents/HP/old_ssd/MY_FILES/flutter_projects/llama_flutter_android/android/src/main/cpp/jni_wrapper.cpp:118:9: error: use of undeclared identifier 'llama_batch_add'
+    118 |         llama_batch_add(batch, tokens[i], i, {0}, i == tokens.size() - 1);
+        |         ^
+  1 error generated.
+  ninja: build stopped: subcommand failed.
+
+  C++ build system [build] failed while executing:
+      @echo off
+      "C:\\Users\\ADMIN\\AppData\\Local\\Android\\sdk\\cmake\\3.22.1\\bin\\ninja.exe" ^
+        -C ^
+        "C:\\Users\\ADMIN\\Documents\\HP\\old_ssd\\MY_FILES\\flutter_projects\\llama_flutter_android\\android\\.cxx\\Debug\\s2a6w5fg\\arm64-v8a" ^
+        ggml ^
+        ggml-base ^
+        ggml-cpu ^
+        llama ^
+        llama_jni
+    from C:\Users\ADMIN\Documents\HP\old_ssd\MY_FILES\flutter_projects\llama_flutter_android\android
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 17s
+Error: Gradle task assembleDebug failed with exit code 1
+
+Exited (1).

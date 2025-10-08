@@ -1,9 +1,10 @@
 group = "com.write4me.llama_flutter_android"
 version = "1.0.0"
 
+// Define extra properties BEFORE buildscript
+extra["kotlinVersion"] = "2.1.0"
+
 buildscript {
-    extra["kotlinVersion"] = "2.1.0"
-    
     repositories {
         google()
         mavenCentral()
@@ -11,7 +12,7 @@ buildscript {
 
     dependencies {
         classpath("com.android.tools.build:gradle:8.9.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${extra["kotlinVersion"]}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
     }
 }
 
@@ -86,7 +87,7 @@ android {
     }
 
     dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:${rootProject.extra["kotlinVersion"]}")
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
         

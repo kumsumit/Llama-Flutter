@@ -30,9 +30,9 @@ set(LLAMA_BUILD_SERVER OFF CACHE BOOL "Disable server")
 # Add llama.cpp
 add_subdirectory(src/main/cpp/llama.cpp)
 
-# JNI wrapper (to be created in Phase 3)
+# JNI wrapper library - simplified without common library
 add_library(llama_jni SHARED
-    # src/main/cpp/jni_wrapper.cpp  # Will be added in Phase 3
+    src/main/cpp/jni_wrapper.cpp
 )
 
 target_link_libraries(llama_jni
@@ -43,5 +43,5 @@ target_link_libraries(llama_jni
 
 target_include_directories(llama_jni PRIVATE
     src/main/cpp/llama.cpp/include
-    src/main/cpp/llama.cpp/common
+    src/main/cpp/llama.cpp/ggml/include
 )
