@@ -169,6 +169,21 @@ class LlamaController implements LlamaFlutterApi {
   /// Check if currently generating
   bool get isGenerating => _isGenerating;
 
+  /// Get current context usage information
+  Future<ContextInfo> getContextInfo() async {
+    return await _api.getContextInfo();
+  }
+
+  /// Clear conversation context (keeps model loaded)
+  Future<void> clearContext() async {
+    await _api.clearContext();
+  }
+
+  /// Set system prompt token length for smart context management
+  void setSystemPromptLength(int length) {
+    _api.setSystemPromptLength(length);
+  }
+
   // Implementation of LlamaFlutterApi interface methods
   @override
   void onToken(String token) {

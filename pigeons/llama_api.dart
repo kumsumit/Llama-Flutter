@@ -132,6 +132,19 @@ class ChatRequest {
   });
 }
 
+/// Context usage information
+class ContextInfo {
+  final int tokensUsed;
+  final int contextSize;
+  final double usagePercentage;
+  
+  ContextInfo({
+    required this.tokensUsed,
+    required this.contextSize,
+    required this.usagePercentage,
+  });
+}
+
 /// Host API (Dart calls Kotlin)
 @HostApi()
 abstract class LlamaHostApi {
@@ -160,6 +173,16 @@ abstract class LlamaHostApi {
   
   /// Check if model is loaded
   bool isModelLoaded();
+  
+  /// Get current context usage information
+  ContextInfo getContextInfo();
+  
+  /// Clear conversation context (keeps model loaded)
+  @async
+  void clearContext();
+  
+  /// Set the system prompt token length for smart context management
+  void setSystemPromptLength(int length);
 }
 
 /// Flutter API (Kotlin calls Dart)

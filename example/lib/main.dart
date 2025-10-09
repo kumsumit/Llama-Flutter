@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:chat_app/services/chat_service.dart';
+import 'package:llama_flutter_android/llama_flutter_android.dart';
 
 // UI Message model for display
 class UIChatMessage {
@@ -305,6 +306,84 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showSettingsDialog() {
+    final config = _chatService.generationConfig;
+    
+    // Controllers for text fields
+    final maxTokensController = TextEditingController(text: config.maxTokens.toString());
+    final temperatureController = TextEditingController(text: config.temperature.toString());
+    final topPController = TextEditingController(text: config.topP.toString());
+    final topKController = TextEditingController(text: config.topK.toString());
+    final repeatPenaltyController = TextEditingController(text: config.repeatPenalty.toString());
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generation Settings'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSettingField('Max Tokens', maxTokensController, 'e.g., 150, 512'),
+              const SizedBox(height: 12),
+              _buildSettingField('Temperature', temperatureController, '0.0-2.0 (0.7 default)'),
+              const SizedBox(height: 12),
+              _buildSettingField('Top-P', topPController, '0.0-1.0 (0.9 default)'),
+              const SizedBox(height: 12),
+              _buildSettingField('Top-K', topKController, 'e.g., 40'),
+              const SizedBox(height: 12),
+              _buildSettingField('Repeat Penalty', repeatPenaltyController, '1.0-2.0 (1.1 default)'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _chatService.generationConfig = GenerationConfig(
+                  maxTokens: int.tryParse(maxTokensController.text) ?? 150,
+                  temperature: double.tryParse(temperatureController.text) ?? 0.7,
+                  topP: double.tryParse(topPController.text) ?? 0.9,
+                  topK: int.tryParse(topKController.text) ?? 40,
+                  repeatPenalty: double.tryParse(repeatPenaltyController.text) ?? 1.1,
+                );
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingField(String label, TextEditingController controller, String hint) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            isDense: true,
+          ),
+          style: const TextStyle(fontSize: 13),
+        ),
+      ],
+    );
+  }
+
   void _clearChat() {
     print('[UI] ===== Clear chat triggered =====');
     
@@ -410,6 +489,75 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
   }
+  
+  Widget _buildContextIndicator() {
+    return StreamBuilder<ContextInfo>(
+      stream: _chatService.contextInfoStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !_isModelLoaded) return const SizedBox.shrink();
+        
+        final info = snapshot.data!;
+        final percent = info.usagePercentage;
+        
+        Color color;
+        IconData icon;
+        String text;
+        
+        if (percent > 85) {
+          color = Colors.red;
+          icon = Icons.warning_amber;
+          text = 'Context: ${percent.toStringAsFixed(0)}% full';
+        } else if (percent > 70) {
+          color = Colors.orange;
+          icon = Icons.info_outline;
+          text = 'Context: ${percent.toStringAsFixed(0)}%';
+        } else {
+          color = Colors.green;
+          icon = Icons.check_circle_outline;
+          text = '${info.tokensUsed}/${info.contextSize} tokens';
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            border: Border(
+              bottom: BorderSide(color: Colors.grey[200]!),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
+              ),
+              const Spacer(),
+              if (percent > 70)
+                TextButton.icon(
+                  onPressed: () async {
+                    await _chatService.clearContext();
+                    _chatService.clearHistory();
+                    setState(() {
+                      _messages.clear();
+                      _currentAIResponse = '';
+                    });
+                  },
+                  icon: Icon(Icons.refresh, size: 14, color: color),
+                  label: Text('Clear', style: TextStyle(fontSize: 12, color: color)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -439,6 +587,12 @@ class _ChatScreenState extends State<ChatScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          if (_isModelLoaded)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Generation settings',
+              onPressed: _showSettingsDialog,
+            ),
           if (_messages.isNotEmpty && _isModelLoaded)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -449,6 +603,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Context indicator
+          if (_isModelLoaded)
+            _buildContextIndicator(),
+          
           // Status area
           if (!_isModelLoaded || _isLoading)
             Container(

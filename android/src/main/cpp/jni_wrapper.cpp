@@ -498,3 +498,40 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeFreeMo
     
     LOGI("Model freed");
 }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGetTokensUsed(
+    JNIEnv* env, jobject thiz) {
+    return g_n_past;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGetContextSize(
+    JNIEnv* env, jobject thiz) {
+    return g_ctx ? llama_n_ctx(g_ctx) : 0;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeClearContext(
+    JNIEnv* env, jobject thiz) {
+    if (!g_ctx) {
+        LOGE("Cannot clear context: context is null");
+        return;
+    }
+    
+    llama_memory_t mem = llama_get_memory(g_ctx);
+    if (mem) {
+        llama_memory_seq_rm(mem, 0, 0, -1);
+        g_n_past = 0;
+        LOGI("Context cleared, g_n_past reset to 0");
+    } else {
+        LOGE("Failed to get memory object from context");
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeSetSystemPromptLength(
+    JNIEnv* env, jobject thiz, jint length) {
+    // Currently not used but available for future smart context management
+    LOGI("System prompt length set to: %d tokens (currently unused)", length);
+}

@@ -255,6 +255,41 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
         return isModelLoaded.get()
     }
 
+    override fun getContextInfo(): ContextInfo {
+        val tokensUsed = nativeGetTokensUsed().toLong()
+        val contextSize = nativeGetContextSize().toLong()
+        val usagePercentage = if (contextSize > 0) {
+            (tokensUsed.toDouble() / contextSize.toDouble() * 100.0)
+        } else {
+            0.0
+        }
+        
+        return ContextInfo(
+            tokensUsed = tokensUsed,
+            contextSize = contextSize,
+            usagePercentage = usagePercentage
+        )
+    }
+
+    override fun clearContext(callback: (Result<Unit>) -> Unit) {
+        scope.launch {
+            try {
+                nativeClearContext()
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(Unit))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
+    override fun setSystemPromptLength(length: Long) {
+        nativeSetSystemPromptLength(length.toInt())
+    }
+
     // Native methods
     private external fun nativeLoadModel(
         path: String,
@@ -286,4 +321,8 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
 
     private external fun nativeStop()
     private external fun nativeFreeModel()
+    private external fun nativeGetTokensUsed(): Int
+    private external fun nativeGetContextSize(): Int
+    private external fun nativeClearContext()
+    private external fun nativeSetSystemPromptLength(length: Int)
 }

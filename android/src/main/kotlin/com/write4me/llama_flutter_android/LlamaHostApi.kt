@@ -242,6 +242,34 @@ data class ChatRequest (
     )
   }
 }
+
+/**
+ * Context usage information
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ContextInfo (
+  val tokensUsed: Long,
+  val contextSize: Long,
+  val usagePercentage: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ContextInfo {
+      val tokensUsed = pigeonVar_list[0] as Long
+      val contextSize = pigeonVar_list[1] as Long
+      val usagePercentage = pigeonVar_list[2] as Double
+      return ContextInfo(tokensUsed, contextSize, usagePercentage)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      tokensUsed,
+      contextSize,
+      usagePercentage,
+    )
+  }
+}
 private open class LlamaHostApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -265,6 +293,11 @@ private open class LlamaHostApiPigeonCodec : StandardMessageCodec() {
           ChatRequest.fromList(it)
         }
       }
+      133.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ContextInfo.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -284,6 +317,10 @@ private open class LlamaHostApiPigeonCodec : StandardMessageCodec() {
       }
       is ChatRequest -> {
         stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is ContextInfo -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -312,6 +349,12 @@ interface LlamaHostApi {
   fun dispose(callback: (Result<Unit>) -> Unit)
   /** Check if model is loaded */
   fun isModelLoaded(): Boolean
+  /** Get current context usage information */
+  fun getContextInfo(): ContextInfo
+  /** Clear conversation context (keeps model loaded) */
+  fun clearContext(callback: (Result<Unit>) -> Unit)
+  /** Set the system prompt token length for smart context management */
+  fun setSystemPromptLength(length: Long)
 
   companion object {
     /** The codec used by LlamaHostApi. */
@@ -434,6 +477,56 @@ interface LlamaHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.isModelLoaded())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.getContextInfo$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getContextInfo())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.clearContext$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.clearContext{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.setSystemPromptLength$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val lengthArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              api.setSystemPromptLength(lengthArg)
+              listOf(null)
             } catch (exception: Throwable) {
               wrapError(exception)
             }

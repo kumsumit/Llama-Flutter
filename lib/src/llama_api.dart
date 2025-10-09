@@ -289,6 +289,38 @@ class ChatRequest {
   }
 }
 
+/// Context usage information
+class ContextInfo {
+  ContextInfo({
+    required this.tokensUsed,
+    required this.contextSize,
+    required this.usagePercentage,
+  });
+
+  int tokensUsed;
+
+  int contextSize;
+
+  double usagePercentage;
+
+  Object encode() {
+    return <Object?>[
+      tokensUsed,
+      contextSize,
+      usagePercentage,
+    ];
+  }
+
+  static ContextInfo decode(Object result) {
+    result as List<Object?>;
+    return ContextInfo(
+      tokensUsed: result[0]! as int,
+      contextSize: result[1]! as int,
+      usagePercentage: result[2]! as double,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -309,6 +341,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is ChatRequest) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
+    }    else if (value is ContextInfo) {
+      buffer.putUint8(133);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -325,6 +360,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return GenerateRequest.decode(readValue(buffer)!);
       case 132: 
         return ChatRequest.decode(readValue(buffer)!);
+      case 133: 
+        return ContextInfo.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -513,6 +550,80 @@ class LlamaHostApi {
       );
     } else {
       return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  /// Get current context usage information
+  Future<ContextInfo> getContextInfo() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.getContextInfo$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as ContextInfo?)!;
+    }
+  }
+
+  /// Clear conversation context (keeps model loaded)
+  Future<void> clearContext() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.clearContext$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Set the system prompt token length for smart context management
+  Future<void> setSystemPromptLength(int length) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.setSystemPromptLength$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[length]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
     }
   }
 }
