@@ -7,6 +7,7 @@
 #include <android/log.h>
 #include "llama.cpp/include/llama.h"
 
+
 #define LOG_TAG "LlamaJNI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -225,6 +226,8 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeLoadMo
     LOGI("Model loaded successfully");
 }
 
+static jobject g_token_callback = nullptr;
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenerate(
     JNIEnv* env, jobject thiz,
@@ -234,6 +237,12 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenera
     jlong mirostat, jdouble mirostat_tau, jdouble mirostat_eta,
     jlong seed, jboolean penalize_newline,
     jobject token_callback) {
+    
+    if (g_token_callback != nullptr) {
+        env->DeleteGlobalRef(g_token_callback);
+        g_token_callback = nullptr;
+    }
+    g_token_callback = env->NewGlobalRef(token_callback);
     
     if (!g_model || !g_ctx || !g_vocab) {
         jclass exception = env->FindClass("java/lang/IllegalStateException");
@@ -277,11 +286,30 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenera
     tokens.resize(actual_tokens);
     env->ReleaseStringUTFChars(prompt, prompt_str);
 
+    const int n_ctx = llama_n_ctx(g_ctx);
+
+    // Check if the context will be exceeded and apply a sliding window for the KV cache
+    if (g_n_past + (int)tokens.size() > n_ctx) {
+        const int n_discard = n_ctx / 4; // Discard the oldest 25% of the context
+        LOGI("Context is full, shifting KV cache by %d tokens", n_discard);
+
+        // Remove the oldest tokens from the sequence
+        llama_memory_seq_rm(llama_get_memory(g_ctx), 0, 0, n_discard);
+        
+        // Shift the remaining tokens
+        llama_memory_seq_add(llama_get_memory(g_ctx), 0, n_discard, g_n_past, -n_discard);
+
+        // Update the past tokens count
+        g_n_past -= n_discard;
+    }
+
     // Process prompt in batches to handle long inputs
     const int max_batch_size = 512;
     int tokens_processed = 0;
     
     llama_batch batch = llama_batch_init(max_batch_size, 0, 1);
+
+    LOGI("Context size: %d", llama_n_ctx(g_ctx));
 
     while (tokens_processed < tokens.size()) {
         batch.n_tokens = 0;
@@ -298,6 +326,7 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenera
 
         LOGI("Decoding batch starting at position %d with %d tokens", g_n_past + tokens_processed, batch.n_tokens);
 
+        LOGI("Decoding batch: g_n_past=%d, batch_size=%d", g_n_past + tokens_processed, batch.n_tokens);
         int decode_result = llama_decode(g_ctx, batch);
         if (decode_result != 0) {
             LOGE("❌ DECODE FAILED! Result code: %d", decode_result);
@@ -398,34 +427,15 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenera
         int32_t length = llama_token_to_piece(g_vocab, new_token_id, buffer, sizeof(buffer), 0, true);
         std::string piece;
         
-        // Validate UTF-8 and handle invalid sequences
         if (length > 0) {
-            piece = std::string(buffer, length);
-            
-            // Simple UTF-8 validation - replace invalid sequences with a placeholder
-            bool valid_utf8 = true;
-            for (int j = 0; j < length; j++) {
-                unsigned char c = static_cast<unsigned char>(buffer[j]);
-                // Check for invalid continuation bytes
-                if ((c & 0xC0) == 0x80) {
-                    if (j == 0 || (static_cast<unsigned char>(buffer[j-1]) & 0xC0) != 0xC0) {
-                        valid_utf8 = false;
-                        break;
-                    }
-                }
-            }
-            
-            // If invalid UTF-8, use a safe placeholder
-            if (!valid_utf8) {
-                piece = "\xEF\xBF\xBD"; // Unicode replacement character
-            }
+            piece = sanitizeUTF8(buffer, length);
         } else {
             piece = "";
         }
         
         // Call Kotlin callback
         jstring token_str = env->NewStringUTF(piece.c_str());
-        env->CallObjectMethod(token_callback, invokeMethod, token_str);
+        env->CallObjectMethod(g_token_callback, invokeMethod, token_str);
         env->DeleteLocalRef(token_str);
 
         // Prepare next batch
@@ -446,6 +456,11 @@ Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeGenera
         g_n_past++;
     }
     LOGI("Generation loop finished.");
+
+    if (g_token_callback != nullptr) {
+        env->DeleteGlobalRef(g_token_callback);
+        g_token_callback = nullptr;
+    }
 
     // After generation completion, ensure the KV cache is properly managed
     // In some llama.cpp versions, KV cache management may be needed between generations
