@@ -184,6 +184,25 @@ class LlamaController implements LlamaFlutterApi {
     _api.setSystemPromptLength(length);
   }
 
+  /// Register a custom chat template
+  /// 
+  /// Template content should use placeholders:
+  /// - {system} for system messages
+  /// - {user} for user messages
+  /// - {assistant} for assistant messages
+  /// 
+  /// Example: "<s>[INST]{user}[/INST]{assistant}</s>"
+  Future<void> registerCustomTemplate(String name, String content) async {
+    await _api.registerCustomTemplate(name, content);
+  }
+
+  /// Unregister a custom chat template
+  /// 
+  /// Removes a previously registered custom template
+  Future<void> unregisterCustomTemplate(String name) async {
+    await _api.unregisterCustomTemplate(name);
+  }
+
   // Implementation of LlamaFlutterApi interface methods
   @override
   void onToken(String token) {

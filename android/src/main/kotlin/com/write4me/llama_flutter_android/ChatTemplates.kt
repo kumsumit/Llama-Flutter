@@ -256,32 +256,47 @@ class PhiTemplate : ChatTemplate {
  * Note: Gemma 2 requires <end_of_turn><eos> for robust multi-turn stability
  * Reference: Google Gemma documentation
  */
-class GemmaTemplate : ChatTemplate {
-    override val name = "gemma"
+/**
+ * Gemma 2 format with BOS token and dual termination
+ * Format:
+ * <bos><start_of_turn>user
+ * {content}<end_of_turn>
+ * <start_of_turn>model
+ * {content}<end_of_turn><eos>
+ * 
+ * Reference: Google Gemma 2 documentation
+ */
+class Gemma2Template : ChatTemplate {
+    override val name = "gemma2"
     
     override fun format(messages: List<TemplateChatMessage>): String {
         val builder = StringBuilder()
+        builder.append("<bos>")  // BOS token required
+        
+        var systemContent: String? = null
         
         for ((index, message) in messages.withIndex()) {
             when (message.role) {
                 "system" -> {
-                    // Gemma doesn't have explicit system role, prepend to first user message
+                    systemContent = message.content
                     continue
                 }
                 "user" -> {
-                    // Check if we need to prepend system message
-                    val systemMsg = if (index == 0 || (index == 1 && messages[0].role == "system")) {
-                        messages.firstOrNull { it.role == "system" }?.content?.let { "$it\n\n" } ?: ""
-                    } else ""
-                    
                     builder.append("<start_of_turn>user\n")
-                    builder.append("$systemMsg${message.content}<end_of_turn>\n")
+                    
+                    // Prepend system to first user message if present
+                    if (systemContent != null && index <= 1) {
+                        builder.append("$systemContent\n\n")
+                        systemContent = null
+                    }
+                    
+                    builder.append("${message.content}<end_of_turn>\n")
                 }
                 "assistant" -> {
                     builder.append("<start_of_turn>model\n")
                     builder.append("${message.content}<end_of_turn>")
                     
-                    // Add <eos> for Gemma 2 dual termination (except for the last message)
+                    // Gemma 2 dual termination (except last message)
                     if (index < messages.size - 1) {
                         builder.append("<eos>")
                     }
@@ -290,9 +305,59 @@ class GemmaTemplate : ChatTemplate {
             }
         }
         
-        // Add the final model turn start for generation prompt
         builder.append("<start_of_turn>model\n")
+        return builder.toString()
+    }
+}
+
+/**
+ * Gemma 3 format (text-only, for GGUF conversions)
+ * Format:
+ * <bos><start_of_turn>user
+ * {content}<end_of_turn>
+ * <start_of_turn>model
+ * {content}<end_of_turn>
+ * 
+ * Note: Full multimodal Gemma 3 requires Transformers library.
+ * GGUF conversions are text-only and use single termination.
+ * 
+ * Reference: Google Gemma 3 documentation
+ */
+class Gemma3Template : ChatTemplate {
+    override val name = "gemma3"
+    
+    override fun format(messages: List<TemplateChatMessage>): String {
+        val builder = StringBuilder()
+        builder.append("<bos>")  // BOS token required
         
+        var systemContent: String? = null
+        
+        for (message in messages) {
+            when (message.role) {
+                "system" -> {
+                    systemContent = message.content
+                    continue
+                }
+                "user" -> {
+                    builder.append("<start_of_turn>user\n")
+                    
+                    // Prepend system to first user message if present
+                    if (systemContent != null) {
+                        builder.append("$systemContent\n\n")
+                        systemContent = null
+                    }
+                    
+                    builder.append("${message.content}<end_of_turn>\n")
+                }
+                "assistant" -> {
+                    builder.append("<start_of_turn>model\n")
+                    builder.append("${message.content}<end_of_turn>\n")
+                    // Gemma 3 uses single termination (no <eos>)
+                }
+            }
+        }
+        
+        builder.append("<start_of_turn>model\n")
         return builder.toString()
     }
 }
@@ -479,11 +544,42 @@ class DeepSeekR1Template : ChatTemplate {
 }
 
 /**
+ * Raw template that uses user-provided string content with placeholders
+ * Supports basic placeholder substitution: {system}, {user}, {assistant}
+ */
+class RawTemplate(
+    override val name: String,
+    private val content: String
+) : ChatTemplate {
+    
+    override fun format(messages: List<TemplateChatMessage>): String {
+        val builder = StringBuilder()
+        
+        for (message in messages) {
+            val formatted = when (message.role) {
+                "system" -> content.replace("{system}", message.content)
+                "user" -> content.replace("{user}", message.content)
+                "assistant" -> content.replace("{assistant}", message.content)
+                else -> {
+                    android.util.Log.w("RawTemplate", "Unknown role: ${message.role}, treating as user")
+                    content.replace("{user}", message.content)
+                }
+            }
+            builder.append(formatted)
+        }
+        
+        return builder.toString()
+    }
+}
+
+/**
  * Manager for chat templates
  * Handles template selection, detection, and message formatting
+ * Supports both built-in and custom user-provided templates
  */
 object ChatTemplateManager {
-    private val templates: Map<String, ChatTemplate> = mapOf(
+    // Built-in templates (immutable)
+    private val builtInTemplates: Map<String, ChatTemplate> = mapOf(
         // ChatML variants
         "chatml" to ChatMLTemplate(),
         "qwen" to ChatMLTemplate(),
@@ -517,17 +613,106 @@ object ChatTemplateManager {
         "vicuna" to VicunaTemplate(),
         "phi" to PhiTemplate(),
         "phi-3" to PhiTemplate(),
-        "gemma" to GemmaTemplate(),
-        "gemma-2" to GemmaTemplate()
+        
+        // Gemma family (separated by version)
+        "gemma" to Gemma2Template(), // Default to Gemma 2 for legacy
+        "gemma2" to Gemma2Template(),
+        "gemma-2" to Gemma2Template(),
+        "gemma3" to Gemma3Template(),
+        "gemma-3" to Gemma3Template()
     )
     
-    fun getTemplate(name: String): ChatTemplate? {
-        return templates[name.lowercase()]
+    // Custom templates (mutable) - registered dynamically at runtime
+    private val customTemplates: MutableMap<String, RawTemplate> = mutableMapOf()
+    
+    /**
+     * Register a custom template with user-provided content
+     * Template content should use placeholders: {system}, {user}, {assistant}
+     * 
+     * @param name Template name (case-insensitive)
+     * @param content Template content with placeholders
+     */
+    @Synchronized
+    fun registerCustomTemplate(name: String, content: String) {
+        val key = name.lowercase()
+        
+        // Warn if overriding built-in template
+        if (builtInTemplates.containsKey(key)) {
+            android.util.Log.w(
+                "ChatTemplateManager", 
+                "Registering custom template '$name' that overrides built-in template"
+            )
+        }
+        
+        customTemplates[key] = RawTemplate(name, content)
+        android.util.Log.i("ChatTemplateManager", "Registered custom template: $name")
     }
     
-    fun getSupportedTemplates(): List<String> {
-        return templates.keys.toList().sorted()
+    /**
+     * Unregister a custom template
+     * 
+     * @param name Template name to remove
+     * @return true if template was removed, false if not found
+     */
+    @Synchronized
+    fun unregisterCustomTemplate(name: String): Boolean {
+        val key = name.lowercase()
+        val removed = customTemplates.remove(key)
+        
+        if (removed != null) {
+            android.util.Log.i("ChatTemplateManager", "Unregistered custom template: $name")
+            return true
+        }
+        
+        android.util.Log.w("ChatTemplateManager", "Custom template not found: $name")
+        return false
     }
+    
+    /**
+     * Get template by name
+     * Checks custom templates first, then built-in templates
+     * 
+     * @param name Template name (case-insensitive)
+     * @return Template instance or null if not found
+     */
+    fun getTemplate(name: String): ChatTemplate? {
+        val key = name.lowercase()
+        
+        // Check custom templates first (allows user override)
+        customTemplates[key]?.let { return it }
+        
+        // Fall back to built-in templates
+        return builtInTemplates[key]
+    }
+    
+    /**
+     * Get list of all supported template names
+     * Includes both custom and built-in templates
+     * 
+     * @return Sorted list of template names
+     */
+    fun getSupportedTemplates(): List<String> {
+        val allTemplates = (customTemplates.keys + builtInTemplates.keys).toSet()
+        return allTemplates.toList().sorted()
+    }
+    
+    /**
+     * Check if a template exists (custom or built-in)
+     * 
+     * @param name Template name (case-insensitive)
+     * @return true if template exists
+     */
+    fun hasTemplate(name: String): Boolean {
+        val key = name.lowercase()
+        return customTemplates.containsKey(key) || builtInTemplates.containsKey(key)
+    }
+    
+    /**
+     * Get count of custom templates
+     * 
+     * @return Number of registered custom templates
+     */
+    fun getCustomTemplateCount(): Int = customTemplates.size
     
     /**
      * Auto-detect template based on model name/path
@@ -538,43 +723,57 @@ object ChatTemplateManager {
         
         return when {
             // Reasoning models (check first - more specific)
-            lowerPath.contains("qwq") -> templates["qwq"]!!
-            lowerPath.contains("deepseek-r1") || lowerPath.contains("deepseek_r1") -> templates["deepseek-r1"]!!
+            lowerPath.contains("qwq") -> builtInTemplates["qwq"]!!
+            lowerPath.contains("deepseek-r1") || lowerPath.contains("deepseek_r1") -> builtInTemplates["deepseek-r1"]!!
             
             // DeepSeek variants
-            lowerPath.contains("deepseek-coder") || lowerPath.contains("deepseek_coder") -> templates["deepseek-coder"]!!
-            lowerPath.contains("deepseek") && (lowerPath.contains("v3") || lowerPath.contains("v3.1")) -> templates["deepseek-r1"]!!
+            lowerPath.contains("deepseek-coder") || lowerPath.contains("deepseek_coder") -> builtInTemplates["deepseek-coder"]!!
+            lowerPath.contains("deepseek") && (lowerPath.contains("v3") || lowerPath.contains("v3.1")) -> builtInTemplates["deepseek-r1"]!!
             
             // Qwen family (ChatML)
-            lowerPath.contains("qwen2.5") || lowerPath.contains("qwen2_5") -> templates["qwen2.5"]!!
-            lowerPath.contains("qwen2") -> templates["qwen2"]!!
-            lowerPath.contains("qwen") -> templates["qwen"]!!
+            lowerPath.contains("qwen2.5") || lowerPath.contains("qwen2_5") -> builtInTemplates["qwen2.5"]!!
+            lowerPath.contains("qwen2") -> builtInTemplates["qwen2"]!!
+            lowerPath.contains("qwen") -> builtInTemplates["qwen"]!!
             
             // Llama family
             lowerPath.contains("llama-3") || lowerPath.contains("llama3") || 
-            lowerPath.contains("llama_3") -> templates["llama3"]!!
+            lowerPath.contains("llama_3") -> builtInTemplates["llama3"]!!
             lowerPath.contains("llama-2") || lowerPath.contains("llama2") || 
-            lowerPath.contains("llama_2") -> templates["llama2"]!!
+            lowerPath.contains("llama_2") -> builtInTemplates["llama2"]!!
             
             // Mistral family
-            lowerPath.contains("mixtral") -> templates["mixtral"]!!
-            lowerPath.contains("mistral") -> templates["mistral"]!!
+            lowerPath.contains("mixtral") -> builtInTemplates["mixtral"]!!
+            lowerPath.contains("mistral") -> builtInTemplates["mistral"]!!
             
             // Command-R (uses ChatML)
-            lowerPath.contains("command-r") || lowerPath.contains("command_r") -> templates["command-r"]!!
+            lowerPath.contains("command-r") || lowerPath.contains("command_r") -> builtInTemplates["command-r"]!!
             
             // Other models
-            lowerPath.contains("phi-3") || lowerPath.contains("phi3") -> templates["phi-3"]!!
-            lowerPath.contains("phi") -> templates["phi"]!!
-            lowerPath.contains("gemma-2") || lowerPath.contains("gemma2") -> templates["gemma-2"]!!
-            lowerPath.contains("gemma") -> templates["gemma"]!!
-            lowerPath.contains("alpaca") -> templates["alpaca"]!!
-            lowerPath.contains("vicuna") -> templates["vicuna"]!!
+            lowerPath.contains("phi-3") || lowerPath.contains("phi3") -> builtInTemplates["phi-3"]!!
+            lowerPath.contains("phi") -> builtInTemplates["phi"]!!
+            
+            // Gemma family - detect version carefully
+            lowerPath.contains("gemma-3") || lowerPath.contains("gemma3") || lowerPath.contains("gemma_3") -> {
+                android.util.Log.i("ChatTemplateManager", "Detected Gemma 3 model - using gemma3 template")
+                android.util.Log.w("ChatTemplateManager", "Note: Full multimodal Gemma 3 requires Transformers. GGUF is text-only.")
+                builtInTemplates["gemma3"]!!
+            }
+            lowerPath.contains("gemma-2") || lowerPath.contains("gemma2") || lowerPath.contains("gemma_2") -> {
+                android.util.Log.i("ChatTemplateManager", "Detected Gemma 2 model - using gemma2 template")
+                builtInTemplates["gemma2"]!!
+            }
+            lowerPath.contains("gemma") -> {
+                android.util.Log.i("ChatTemplateManager", "Detected legacy Gemma model - defaulting to gemma2 template")
+                builtInTemplates["gemma2"]!!
+            }
+            
+            lowerPath.contains("alpaca") -> builtInTemplates["alpaca"]!!
+            lowerPath.contains("vicuna") -> builtInTemplates["vicuna"]!!
             
             // Default fallback to ChatML (most widely compatible)
             else -> {
                 android.util.Log.w("ChatTemplateManager", "Unknown model format, defaulting to ChatML: $modelPath")
-                templates["chatml"]!!
+                builtInTemplates["chatml"]!!
             }
         }
     }

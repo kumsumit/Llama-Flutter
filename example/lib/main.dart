@@ -316,6 +316,187 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showCustomTemplateEditor(BuildContext context) async {
+    final nameController = TextEditingController();
+    final contentController = TextEditingController();
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.edit_note, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            const Text('Create Custom Template'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Template Name Section
+              Text('Template Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text(
+                'A unique identifier for your template (e.g., "mistral-instruct", "my-llama")',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  hintText: 'e.g., mistral-custom',
+                  prefixIcon: Icon(Icons.label, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Template Content Section
+              Text('Template Content', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 4),
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.amber[900]),
+                        const SizedBox(width: 6),
+                        Text('Placeholders:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.amber[900])),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text('• {system} - System message', style: TextStyle(fontSize: 11, color: Colors.grey[800])),
+                    Text('• {user} - User input', style: TextStyle(fontSize: 11, color: Colors.grey[800])),
+                    Text('• {assistant} - AI response', style: TextStyle(fontSize: 11, color: Colors.grey[800])),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline, size: 16, color: Colors.green[900]),
+                        const SizedBox(width: 6),
+                        Text('Examples:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.green[900])),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    _buildExampleTemplate('Mistral', '<s>[INST]{system}\\n\\n{user}[/INST]{assistant}</s>'),
+                    _buildExampleTemplate('Llama 3', '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\\n\\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n{assistant}<|eot_id|>'),
+                    _buildExampleTemplate('Simple', 'User: {user}\\nAssistant: {assistant}\\n'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: contentController,
+                maxLines: 6,
+                style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: 'Paste or type your template here...\n\nExample:\n<s>[INST]{user}[/INST]{assistant}</s>',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: EdgeInsets.all(12),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final content = contentController.text.trim();
+              
+              if (name.isNotEmpty && content.isNotEmpty) {
+                await _chatService.addCustomTemplate(name, content);
+                
+                if (context.mounted) {
+                  Navigator.pop(context); // Close editor
+                  
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Custom template "$name" created'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              } else {
+                // Show error message
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Please provide both name and content'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Helper widget to show example templates
+  Widget _buildExampleTemplate(String name, String template) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('• ', style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 11, color: Colors.grey[800]),
+                children: [
+                  TextSpan(
+                    text: '$name: ',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  TextSpan(
+                    text: template.length > 60 ? '${template.substring(0, 60)}...' : template,
+                    style: TextStyle(fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   void _showSettingsDialog() {
     // Get current settings
     final config = _chatService.generationConfig;
@@ -391,6 +572,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     DropdownMenuItem(value: 'gemma', child: Text('Gemma')),
                     DropdownMenuItem(value: 'alpaca', child: Text('Alpaca')),
                     DropdownMenuItem(value: 'vicuna', child: Text('Vicuna')),
+                    // Add custom templates
+                    ..._chatService.customTemplateNames.map((template) => 
+                      DropdownMenuItem(value: template, child: Text(template))
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -400,13 +585,125 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              // Custom Templates Section
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  border: Border.all(color: Colors.blue[200]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.edit_note, size: 18, color: Colors.blue[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Custom Chat Templates',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.blue[900]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create custom templates with {system}, {user}, and {assistant} placeholders to match your model\'s format.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _showCustomTemplateEditor(context);
+                        },
+                        icon: Icon(Icons.add, size: 18),
+                        label: Text('Create New Template'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_chatService.customTemplateNames.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Saved Templates (${_chatService.customTemplateNames.length}):',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _chatService.customTemplateNames.map((templateName) {
+                          return Chip(
+                            label: Text(templateName, style: TextStyle(fontSize: 12)),
+                            deleteIcon: Icon(Icons.close, size: 16),
+                            onDeleted: () async {
+                              // Show confirmation dialog
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text('Delete Template?'),
+                                  content: Text('Are you sure you want to delete "$templateName"?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              
+                              if (confirmed == true) {
+                                await _chatService.removeCustomTemplate(templateName);
+                                
+                                // Refresh the dialog
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  _showSettingsDialog();
+                                  
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Template "$templateName" deleted'),
+                                      backgroundColor: Colors.orange,
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            backgroundColor: Colors.blue[100],
+                            deleteIconColor: Colors.red[700],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Checkbox(
                     value: autoUnloadEnabled,
-                    onChanged: (value) {
+                    onChanged: (value) async {
+                      final newValue = value ?? false;
+                      // Update the service immediately to reflect real-time changes
+                      await _chatService.updateAutoUnloadModel(newValue);
+                      
+                      // Update local state to reflect the change
                       setState(() {
-                        autoUnloadEnabled = value ?? false;
+                        autoUnloadEnabled = newValue;
                       });
                     },
                   ),
@@ -438,6 +735,50 @@ class _ChatScreenState extends State<ChatScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // Show confirmation dialog for reset
+              bool confirmReset = false;
+              if (context.mounted) {
+                confirmReset = await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Reset Settings'),
+                    content: const Text('Are you sure you want to reset all settings to their default values? This will reset generation parameters, model settings, and system message.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Reset', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                ) ?? false;
+              }
+
+              if (confirmReset) {
+                await _chatService.resetSettingsToDefault();
+                if (context.mounted) {
+                  Navigator.pop(context); // Close settings dialog
+                  
+                  // Show confirmation that settings were reset
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Settings reset to default values'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Reset', style: TextStyle(color: Colors.red)),
           ),
           TextButton(
             onPressed: () async {

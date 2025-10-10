@@ -183,6 +183,12 @@ abstract class LlamaHostApi {
   
   /// Set the system prompt token length for smart context management
   void setSystemPromptLength(int length);
+  
+  /// Register a custom template
+  void registerCustomTemplate(String name, String content);
+  
+  /// Unregister a custom template
+  void unregisterCustomTemplate(String name);
 }
 
 /// Flutter API (Kotlin calls Dart)

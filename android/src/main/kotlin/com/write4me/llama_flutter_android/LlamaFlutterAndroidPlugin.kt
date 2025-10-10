@@ -290,6 +290,22 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
         nativeSetSystemPromptLength(length.toInt())
     }
 
+    /**
+     * Register a custom chat template
+     * Allows users to provide their own template format at runtime
+     */
+    override fun registerCustomTemplate(name: String, content: String) {
+        ChatTemplateManager.registerCustomTemplate(name, content)
+    }
+
+    /**
+     * Unregister a custom chat template
+     * Removes a previously registered custom template
+     */
+    override fun unregisterCustomTemplate(name: String) {
+        ChatTemplateManager.unregisterCustomTemplate(name)
+    }
+
     // Native methods
     private external fun nativeLoadModel(
         path: String,

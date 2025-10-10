@@ -355,6 +355,10 @@ interface LlamaHostApi {
   fun clearContext(callback: (Result<Unit>) -> Unit)
   /** Set the system prompt token length for smart context management */
   fun setSystemPromptLength(length: Long)
+  /** Register a custom template */
+  fun registerCustomTemplate(name: String, content: String)
+  /** Unregister a custom template */
+  fun unregisterCustomTemplate(name: String)
 
   companion object {
     /** The codec used by LlamaHostApi. */
@@ -526,6 +530,43 @@ interface LlamaHostApi {
             val lengthArg = args[0] as Long
             val wrapped: List<Any?> = try {
               api.setSystemPromptLength(lengthArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.registerCustomTemplate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nameArg = args[0] as String
+            val contentArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              api.registerCustomTemplate(nameArg, contentArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.unregisterCustomTemplate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nameArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.unregisterCustomTemplate(nameArg)
               listOf(null)
             } catch (exception: Throwable) {
               wrapError(exception)
