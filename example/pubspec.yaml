@@ -38,7 +38,7 @@ dependencies:
   # Local plugin for running GGUF models on Android
   # llama_flutter_android:
   #   path: ../
-  llama_flutter_android:
+  Llama-Flutter:
     git:
       url: https://github.com/dragneel2074/Llama-Flutter.git
       ref: master
