@@ -95,22 +95,18 @@ controller.generateChat(
 controller.generate(
   prompt: 'Explain machine learning',
   maxTokens: 1000,
-  
   // Sampling
   temperature: 0.8,      // Creativity (0.0-2.0)
   topP: 0.9,             // Nucleus sampling
   topK: 40,              // Top-K sampling
   minP: 0.05,            // Minimum probability
-  
   // Penalties (reduce repetition)
   repeatPenalty: 1.2,    // Penalize repeated tokens
   frequencyPenalty: 0.5, // Penalize frequent tokens
   presencePenalty: 0.3,  // Penalize token presence
   repeatLastN: 64,       // Penalty window size
-  
   // Reproducibility
   seed: 42,              // Fixed seed for same output
-  
   // Mirostat (perplexity control)
   mirostat: 2,           // 0=off, 1=v1, 2=v2
   mirostatTau: 5.0,      // Target perplexity
@@ -124,25 +120,25 @@ await controller.stop();
 ## Architecture
 
 ```
-         Flutter App (Dart)          
+         Flutter App (Dart)
                 ↓
-    llama_flutter_android.dart       
-    (User-facing API)                
+    llama_flutter_android.dart
+    (User-facing API)
                 ↓
-    Pigeon Generated Code            
-    (Type-safe bridge)               
+    Pigeon Generated Code
+    (Type-safe bridge)
                 ↓
-    LlamaFlutterAndroidPlugin.kt     
-    (Kotlin coroutines)              
+    LlamaFlutterAndroidPlugin.kt
+    (Kotlin coroutines)
                 ↓
-    InferenceService.kt              
-    (Foreground service)             
+    InferenceService.kt
+    (Foreground service)
                 ↓
-    jni_wrapper.cpp                  
-    (JNI bridge)                     
+    jni_wrapper.cpp
+    (JNI bridge)
                 ↓
-    llama.cpp                        
-    (Native inference)               
+    llama.cpp
+    (Native inference)
 ```
 
 ## API Reference
