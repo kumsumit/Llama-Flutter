@@ -7,19 +7,15 @@ Run GGUF models on Android with [llama.cpp](https://github.com/ggerganov/llama.c
 
 ## Features
 
-- **MIT Licensed** - Commercial-friendly, unlike GPL alternatives
-- **Android Only** - Optimized specifically for Android (8MB vs 15MB+ multi-platform packages)
-- **Android 15 Ready** - Full 16KB page size compliance
+- **Android Only** - Optimized specifically for Android
 - **Simple API** - Easy-to-use Dart interface with Pigeon type safety
 - **Token Streaming** - Real-time token generation with EventChannel
-- **🛑 Stop Generation** - Cancel text generation mid-process on Android devices
-- **18 Parameters** - Fine-grained control (temperature, penalties, mirostat, seed, etc.)
-- **7 Chat Templates** - ChatML, Llama-2, Alpaca, Vicuna, Phi, Gemma, Zephyr
-- **Latest llama.cpp** - Built on October 2025 llama.cpp (no patches needed)
-- **ARM64 Optimized** - NEON and dot product optimizations enabled
+- **Stop Generation** - Cancel text generation mid-process on Android devices
 - **18 Parameters** - Complete control: temperature, penalties, mirostat, seed, and more
 - **7 Chat Templates** - ChatML, Llama-2, Alpaca, Vicuna, Phi, Gemma, Zephyr
 - **Auto-Detection** - Chat templates detected from model filename
+- **Latest llama.cpp** - Built on October 2025 llama.cpp (no patches needed)
+- **ARM64 Optimized** - NEON and dot product optimizations enabled
 
 ## Requirements
 
@@ -30,21 +26,21 @@ Run GGUF models on Android with [llama.cpp](https://github.com/ggerganov/llama.c
 
 ## Installation
 
-Add to your \pubspec.yaml\:
+Add to your `pubspec.yaml`:
 
-\\\yaml
+```yaml
 dependencies:
   llama_flutter_android:
     git:
       url: https://github.com/dragneel2074/Llama-Flutter.git
       ref: master
-\\\
+```
 
 ## Quick Start
 
 ### Basic Usage
 
-\\\dart
+```dart
 import 'package:llama_flutter_android/llama_flutter_android.dart';
 
 // Initialize controller
@@ -69,17 +65,17 @@ subscription = controller.generate(
   onError: (error) => print('Error: $error'),
 );
 
-// 🛑 STOP generation mid-process (critical for UX!)
+// Stop generation mid-process (critical for UX!)
 await controller.stop();
 subscription?.cancel();
 
 // Clean up
 await controller.dispose();
-\\\
+```
 
 ### Chat Mode with Templates
 
-\\\dart
+```dart
 // Chat with automatic template formatting
 controller.generateChat(
   messages: [
@@ -90,11 +86,11 @@ controller.generateChat(
   temperature: 0.7,
   maxTokens: 1000,
 ).listen((token) => print(token));
-\\\
+```
 
 ### Advanced Parameters
 
-\\\dart
+```dart
 // Fine-grained control over generation
 controller.generate(
   prompt: 'Explain machine learning',
@@ -121,79 +117,62 @@ controller.generate(
   mirostatEta: 0.1,      // Learning rate
 ).listen((token) => print(token));
 
-// 🛑 Stop anytime!
+// Stop anytime!
 await controller.stop();
-\\\
-
-## Why llama_flutter_android?
-
-| Feature | fllama | flutter_gemma | **llama_flutter_android** |
-|---------|--------|---------------|---------------------------|
-| License | GPLv2  | Apache 2.0  | **MIT**  |
-| Platforms | iOS/Android/Windows | Android only | **Android only** |
-| Package Size | ~15MB | ~12MB | **~8MB** |
-| llama.cpp Version | Outdated | Gemma-specific | **Latest (Oct 2025)** |
-| 16KB Pages | Unknown | Unknown | **Compliant**  |
-| API | Complex FFI | Gemma-specific | **Simple & Generic** |
-
-## Development Status
-
-**Phase 1: Project Scaffold**  COMPLETE
-- Flutter plugin created
-- Build system configured
-- llama.cpp submodule added
-
-**Phase 2: Pigeon API** (In Progress)
-- Define type-safe API
-- Generate Kotlin/Dart code
-
-**Phase 3: Kotlin Plugin** (Planned)
-- Implement host API
-- Create foreground service
-- JNI wrapper
-
-**Phase 4: Example App** (Planned)
-- Demo chat interface
-- Model download/management
+```
 
 ## Architecture
 
-\\\
-
+```
          Flutter App (Dart)          
-
+                ↓
     llama_flutter_android.dart       
     (User-facing API)                
-
+                ↓
     Pigeon Generated Code            
     (Type-safe bridge)               
-
+                ↓
     LlamaFlutterAndroidPlugin.kt     
     (Kotlin coroutines)              
-
+                ↓
     InferenceService.kt              
     (Foreground service)             
-
+                ↓
     jni_wrapper.cpp                  
     (JNI bridge)                     
-
+                ↓
     llama.cpp                        
     (Native inference)               
+```
 
-\\\
+## API Reference
 
-## 📚 Documentation
+### LlamaController
 
-Comprehensive documentation is available in the [`/docs`](docs/) directory:
+The main interface for working with llama.cpp models.
 
-- **[Quick Start Guide](docs/guides/QUICK_START.md)** - Get started quickly
-- **[Features Guide](docs/guides/FEATURES.md)** - Detailed feature overview
-- **[Parameters Guide](docs/guides/PARAMETERS_GUIDE.md)** - Configure inference parameters
-- **[Chat Templates](docs/guides/CHAT_TEMPLATES.md)** - Using chat templates
-- **[Architecture](docs/development/ARCHITECTURE.md)** - System design
-- **[Project Status](docs/development/PROJECT_STATUS.md)** - Current status
+**Methods:**
+- `loadModel()` - Load a GGUF model file
+- `generate()` - Generate text with streaming tokens
+- `generateChat()` - Generate chat responses with template formatting
+- `stop()` - Stop generation mid-process
+- `dispose()` - Clean up resources
 
-See the [documentation index](docs/README.md) for the complete list.
+**Parameters:**
+- Basic: `maxTokens`, `seed`
+- Sampling: `temperature`, `topP`, `topK`, `minP`, `typicalP`
+- Penalties: `repeatPenalty`, `frequencyPenalty`, `presencePenalty`, `repeatLastN`, `penalizeNl`
+- Mirostat: `mirostat`, `mirostatTau`, `mirostatEta`
+- Advanced: `tfsZ`, `locallyTypical`
+
+**Supported Chat Templates:**
+- `chatml` - ChatML format (default)
+- `llama2` - Llama-2 format
+- `alpaca` - Alpaca format
+- `vicuna` - Vicuna format
+- `phi` - Phi format
+- `gemma` - Gemma format
+- `zephyr` - Zephyr format
 
 ## Contributing
 
@@ -211,6 +190,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- 📖 [Documentation](docs/)
-- 🐛 [Issue Tracker](https://github.com/dragneel2074/llama_flutter_android/issues)
-- 💬 [Discussions](https://github.com/dragneel2074/llama_flutter_android/discussions)
+-  [Issue Tracker](https://github.com/dragneel2074/Llama-Flutter/issues)
+- 💬 [Discussions](https://github.com/dragneel2074/Llama-Flutter/discussions)
+- 📦 [Example App](example/) - Complete working example
