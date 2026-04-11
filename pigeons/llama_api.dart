@@ -7,6 +7,7 @@ import 'package:pigeon/pigeon.dart';
   ),
   dartOut: 'lib/src/llama_api.dart',
   dartOptions: DartOptions(),
+  swiftOut: 'ios/Classes/GeneratedMessages.g.swift',
 ))
   
 /// Configuration for model loading
