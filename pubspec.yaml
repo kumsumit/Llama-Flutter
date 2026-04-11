@@ -26,3 +26,5 @@ flutter:
       android:
         package: com.write4me.llama_flutter_android
         pluginClass: LlamaFlutterAndroidPlugin
+      ios:
+        pluginClass: LlamaFlutterAndroidPlugin
