@@ -5,11 +5,11 @@ import Foundation
 
 // MARK: - Data classes
 
-struct ModelConfig {
-    var modelPath: String
-    var nThreads: Int64
-    var contextSize: Int64
-    var nGpuLayers: Int64?
+public struct ModelConfig {
+    public var modelPath: String
+    public var nThreads: Int64
+    public var contextSize: Int64
+    public var nGpuLayers: Int64?
 
     static func fromList(_ list: [Any?]) -> ModelConfig {
         func toI64(_ v: Any?) -> Int64 { v is Int ? Int64(v as! Int) : v as! Int64 }
@@ -23,9 +23,9 @@ struct ModelConfig {
     func toList() -> [Any?] { [modelPath, nThreads, contextSize, nGpuLayers] }
 }
 
-struct ChatMessage {
-    var role: String
-    var content: String
+public struct ChatMessage {
+    public var role: String
+    public var content: String
 
     static func fromList(_ list: [Any?]) -> ChatMessage {
         return ChatMessage(role: list[0] as! String, content: list[1] as! String)
@@ -33,23 +33,23 @@ struct ChatMessage {
     func toList() -> [Any?] { [role, content] }
 }
 
-struct GenerateRequest {
-    var prompt: String
-    var maxTokens: Int64
-    var temperature: Double
-    var topP: Double
-    var topK: Int64
-    var minP: Double
-    var typicalP: Double
-    var repeatPenalty: Double
-    var frequencyPenalty: Double
-    var presencePenalty: Double
-    var repeatLastN: Int64
-    var mirostat: Int64
-    var mirostatTau: Double
-    var mirostatEta: Double
-    var seed: Int64?
-    var penalizeNewline: Bool
+public struct GenerateRequest {
+    public var prompt: String
+    public var maxTokens: Int64
+    public var temperature: Double
+    public var topP: Double
+    public var topK: Int64
+    public var minP: Double
+    public var typicalP: Double
+    public var repeatPenalty: Double
+    public var frequencyPenalty: Double
+    public var presencePenalty: Double
+    public var repeatLastN: Int64
+    public var mirostat: Int64
+    public var mirostatTau: Double
+    public var mirostatEta: Double
+    public var seed: Int64?
+    public var penalizeNewline: Bool
 
     static func fromList(_ list: [Any?]) -> GenerateRequest {
         func toI64(_ v: Any?) -> Int64 { v is Int ? Int64(v as! Int) : v as! Int64 }
@@ -74,24 +74,24 @@ struct GenerateRequest {
     }
 }
 
-struct ChatRequest {
-    var messages: [ChatMessage]
-    var template: String?
-    var maxTokens: Int64
-    var temperature: Double
-    var topP: Double
-    var topK: Int64
-    var minP: Double
-    var typicalP: Double
-    var repeatPenalty: Double
-    var frequencyPenalty: Double
-    var presencePenalty: Double
-    var repeatLastN: Int64
-    var mirostat: Int64
-    var mirostatTau: Double
-    var mirostatEta: Double
-    var seed: Int64?
-    var penalizeNewline: Bool
+public struct ChatRequest {
+    public var messages: [ChatMessage]
+    public var template: String?
+    public var maxTokens: Int64
+    public var temperature: Double
+    public var topP: Double
+    public var topK: Int64
+    public var minP: Double
+    public var typicalP: Double
+    public var repeatPenalty: Double
+    public var frequencyPenalty: Double
+    public var presencePenalty: Double
+    public var repeatLastN: Int64
+    public var mirostat: Int64
+    public var mirostatTau: Double
+    public var mirostatEta: Double
+    public var seed: Int64?
+    public var penalizeNewline: Bool
 
     static func fromList(_ list: [Any?]) -> ChatRequest {
         func toI64(_ v: Any?) -> Int64 { v is Int ? Int64(v as! Int) : v as! Int64 }
@@ -119,17 +119,17 @@ struct ChatRequest {
     }
 }
 
-struct ContextInfo {
-    var tokensUsed: Int64
-    var contextSize: Int64
-    var usagePercentage: Double
+public struct ContextInfo {
+    public var tokensUsed: Int64
+    public var contextSize: Int64
+    public var usagePercentage: Double
 
     func toList() -> [Any?] { [tokensUsed, contextSize, usagePercentage] }
 }
 
 // MARK: - Host API protocol (Dart calls Swift)
 
-protocol LlamaHostApiProtocol {
+public protocol LlamaHostApiProtocol {
     func loadModel(config: ModelConfig, completion: @escaping (Result<Void, Error>) -> Void)
     func generate(request: GenerateRequest, completion: @escaping (Result<Void, Error>) -> Void)
     func generateChat(request: ChatRequest, completion: @escaping (Result<Void, Error>) -> Void)
@@ -146,8 +146,8 @@ protocol LlamaHostApiProtocol {
 
 // MARK: - Channel registration
 
-enum LlamaHostApiSetup {
-    static func setUp(binaryMessenger: FlutterBinaryMessenger, api: LlamaHostApiProtocol?) {
+public enum LlamaHostApiSetup {
+    public static func setUp(binaryMessenger: FlutterBinaryMessenger, api: LlamaHostApiProtocol?) {
         let codec = FlutterStandardMessageCodec.sharedInstance()
 
         func ch(_ name: String) -> FlutterBasicMessageChannel {
