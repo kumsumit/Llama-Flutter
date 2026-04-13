@@ -196,24 +196,53 @@ static std::string sanitizeUTF8(const char* str, size_t len) {
         llama_batch_free(batch);
     }
 
-    // Build sampler chain
+    // Build sampler chain — mirrors jni_wrapper.cpp exactly
     if (g_sampler) { llama_sampler_free(g_sampler); g_sampler = nullptr; }
     llama_sampler_chain_params chain_params = llama_sampler_chain_default_params();
     g_sampler = llama_sampler_chain_init(chain_params);
 
-    uint32_t seed_val = (seed < 0) ? LLAMA_DEFAULT_SEED : (uint32_t)seed;
+    uint32_t seed_val = (seed < 0) ? (uint32_t)time(nullptr) : (uint32_t)seed;
+
+    // Penalties first (applied to logits before sampling)
+    if (repeatPenalty != 1.0 || frequencyPenalty != 0.0 || presencePenalty != 0.0) {
+        llama_sampler_chain_add(g_sampler, llama_sampler_init_penalties(
+            repeatLastN,
+            (float)repeatPenalty,
+            (float)frequencyPenalty,
+            (float)presencePenalty
+        ));
+    }
+
+    // Temperature
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp((float)temperature));
 
     if (mirostat == 1) {
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_mirostat(g_vocab, seed_val, (float)mirostatTau, (float)mirostatEta, 100));
+        llama_sampler_chain_add(g_sampler, llama_sampler_init_mirostat(
+            llama_vocab_n_tokens(g_vocab),
+            seed_val,
+            (float)mirostatTau,
+            (float)mirostatEta,
+            100
+        ));
     } else if (mirostat == 2) {
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_mirostat_v2(seed_val, (float)mirostatTau, (float)mirostatEta));
+        llama_sampler_chain_add(g_sampler, llama_sampler_init_mirostat_v2(
+            seed_val,
+            (float)mirostatTau,
+            (float)mirostatEta
+        ));
     } else {
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(topK));
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p((float)topP, 1));
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_min_p((float)minP, 1));
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_temp((float)temperature));
-        llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(seed_val));
+        if (minP > 0.0 && minP < 1.0)
+            llama_sampler_chain_add(g_sampler, llama_sampler_init_min_p((float)minP, 1));
+        if (typicalP < 1.0)
+            llama_sampler_chain_add(g_sampler, llama_sampler_init_typical((float)typicalP, 1));
+        if (topK > 0)
+            llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(topK));
+        if (topP < 1.0)
+            llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p((float)topP, 1));
     }
+
+    // Final distribution sampler
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(seed_val));
 
     // Generation loop
     const llama_token eos_token = llama_vocab_eos(g_vocab);
