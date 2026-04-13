@@ -11,42 +11,48 @@ Pod::Spec.new do |s|
   s.swift_version    = '5.0'
   s.dependency 'Flutter'
 
-  llama_root = '$(PODS_TARGET_SRCROOT)/../android/src/main/cpp/llama.cpp'
+  # Copy llama.cpp sources into the pod's own directory so CocoaPods
+  # glob resolution works correctly regardless of symlink depth.
+  s.prepare_command = <<-CMD
+    set -e
+    LLAMA_SRC="$(pwd)/../android/src/main/cpp/llama.cpp"
+    DST="$(pwd)/llama_cpp_src"
+    rm -rf "$DST"
+    mkdir -p "$DST"
+    cp -r "$LLAMA_SRC/include"       "$DST/include"
+    cp -r "$LLAMA_SRC/src"           "$DST/src"
+    cp -r "$LLAMA_SRC/ggml"          "$DST/ggml"
+  CMD
 
-  # Plugin Swift/ObjC++ sources
-  plugin_sources = 'Classes/**/*.{swift,h,m,mm}'
+  llama_root = '$(PODS_TARGET_SRCROOT)/llama_cpp_src'
 
-  # llama.cpp core C++ sources
-  llama_core_sources = '../android/src/main/cpp/llama.cpp/src/*.cpp'
-
-  # ggml C/C++ sources
-  ggml_sources = [
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml.c',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-alloc.c',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-backend.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-backend-reg.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-opt.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-quants.c',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-threading.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/gguf.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/ggml-cpu.c',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/ggml-cpu.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/quants.c',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/binary-ops.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/ops.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-cpu/repack.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-metal/ggml-metal.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-metal/ggml-metal-common.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-metal/ggml-metal-device.cpp',
-    '../android/src/main/cpp/llama.cpp/ggml/src/ggml-metal/ggml-metal-ops.cpp',
+  s.source_files = [
+    'Classes/**/*.{swift,h,m,mm}',
+    'llama_cpp_src/src/*.cpp',
+    'llama_cpp_src/ggml/src/ggml.c',
+    'llama_cpp_src/ggml/src/ggml.cpp',
+    'llama_cpp_src/ggml/src/ggml-alloc.c',
+    'llama_cpp_src/ggml/src/ggml-backend.cpp',
+    'llama_cpp_src/ggml/src/ggml-backend-reg.cpp',
+    'llama_cpp_src/ggml/src/ggml-opt.cpp',
+    'llama_cpp_src/ggml/src/ggml-quants.c',
+    'llama_cpp_src/ggml/src/ggml-threading.cpp',
+    'llama_cpp_src/ggml/src/gguf.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/ggml-cpu.c',
+    'llama_cpp_src/ggml/src/ggml-cpu/ggml-cpu.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/quants.c',
+    'llama_cpp_src/ggml/src/ggml-cpu/binary-ops.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/ops.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/repack.cpp',
+    'llama_cpp_src/ggml/src/ggml-metal/ggml-metal.cpp',
+    'llama_cpp_src/ggml/src/ggml-metal/ggml-metal-common.cpp',
+    'llama_cpp_src/ggml/src/ggml-metal/ggml-metal-device.cpp',
+    'llama_cpp_src/ggml/src/ggml-metal/ggml-metal-ops.cpp',
   ]
-
-  s.source_files = [plugin_sources, llama_core_sources] + ggml_sources
 
   s.resource_bundles = {
     'llama_flutter_android_metal' => [
-      '../android/src/main/cpp/llama.cpp/ggml/src/ggml-metal/ggml-metal.metal',
+      'llama_cpp_src/ggml/src/ggml-metal/ggml-metal.metal',
     ]
   }
 

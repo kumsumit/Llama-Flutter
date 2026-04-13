@@ -53,6 +53,9 @@ app.*.map.json
 .cxx/
 .externalNativeBuild/
 
+# iOS CocoaPods prepare_command generated copy of llama.cpp sources
+ios/llama_cpp_src/
+
 # Backup files and folders
 *.backup
 backup/
