@@ -46,11 +46,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Remove the default credential helper set by actions/checkout
-          git config --unset-all http.https://github.com/.extraheader || true
+          # Remove the extraheader injected by actions/checkout so our PAT takes effect
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git config --global --unset-all http.https://github.com/.extraheader || true
 
           git remote add production "https://${PRODUCTION_REPO_PAT}@github.com/dragneel2074/Llama-Flutter.git"
-          git push production HEAD:master
+          git -c http.extraheader="" push production HEAD:master
 
       - name: Setup Flutter
         if: github.event.inputs.publish_pub_dev == 'true'
