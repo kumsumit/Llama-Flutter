@@ -2,8 +2,10 @@ name: Build iOS
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [master]
+    inputs:
+      _disabled:
+        description: 'This workflow is disabled'
+        required: false
 
 concurrency:
   group: build-ios-${{ github.ref }}
