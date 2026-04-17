@@ -84,6 +84,18 @@ std::string gen_tool_call_id() {
     return random_string();
 }
 
+const char * get_media_marker() {
+    static const std::string marker = []() {
+        // allow user to pin a reproducible marker via env var
+        const char * env = getenv("LLAMA_MEDIA_MARKER");
+        if (env && env[0] != '\0') {
+            return std::string(env);
+        }
+        return std::string("<__media_") + random_string() + "__>";
+    }();
+    return marker.c_str();
+}
+
 //
 // lora utils
 //
@@ -276,7 +288,7 @@ llama_pos server_tokens::pos_next(int64_t n_tokens) const {
 
 size_t server_tokens::size_up_to_pos(llama_pos max_pos) const {
     if (!has_mtmd) {
-        return std::min((size_t)(max_pos + 1), tokens.size());
+        return std::min((size_t)max_pos, tokens.size());
     }
 
     size_t idx = 0;
@@ -296,7 +308,7 @@ size_t server_tokens::size_up_to_pos(llama_pos max_pos) const {
             idx++;
         }
 
-        if (pos > max_pos) {
+        if (pos >= max_pos) {
             break;
         }
     }
@@ -975,7 +987,7 @@ json oaicompat_chat_params_parse(
                 handle_media(out_files, image_url, opt.media_path);
 
                 p["type"] = "media_marker";
-                p["text"] = mtmd_default_marker();
+                p["text"] = get_media_marker();
                 p.erase("image_url");
 
             } else if (type == "input_audio") {
@@ -996,7 +1008,7 @@ json oaicompat_chat_params_parse(
                 // TODO: add audio_url support by reusing handle_media()
 
                 p["type"] = "media_marker";
-                p["text"] = mtmd_default_marker();
+                p["text"] = get_media_marker();
                 p.erase("input_audio");
 
             } else if (type != "text") {
@@ -1065,6 +1077,7 @@ json oaicompat_chat_params_parse(
 
         inputs.add_generation_prompt = true;
     }
+    inputs.force_pure_content = opt.force_pure_content;
 
     // Apply chat template to the list of messages
     auto chat_params = common_chat_templates_apply(opt.tmpls.get(), inputs);
@@ -1080,25 +1093,41 @@ json oaicompat_chat_params_parse(
         }
     }
 
-    llama_params["chat_format"]      = static_cast<int>(chat_params.format);
-    llama_params["prompt"]           = chat_params.prompt;
+    llama_params["chat_format"] = static_cast<int>(chat_params.format);
+    llama_params["prompt"]      = chat_params.prompt;
     if (!chat_params.grammar.empty()) {
-        llama_params["grammar"] = chat_params.grammar;
+        llama_params["grammar"]      = chat_params.grammar;
+        llama_params["grammar_type"] = std::string("tool_calls");
     }
-    llama_params["grammar_lazy"]     = chat_params.grammar_lazy;
-    auto grammar_triggers = json::array();
+    llama_params["grammar_lazy"] = chat_params.grammar_lazy;
+    auto grammar_triggers        = json::array();
     for (const auto & trigger : chat_params.grammar_triggers) {
         server_grammar_trigger ct(trigger);
         grammar_triggers.push_back(ct.to_json());
     }
-    llama_params["grammar_triggers"] = grammar_triggers;
-    llama_params["preserved_tokens"] = chat_params.preserved_tokens;
-    llama_params["thinking_forced_open"]     = chat_params.thinking_forced_open;
+    llama_params["grammar_triggers"]  = grammar_triggers;
+    llama_params["preserved_tokens"]  = chat_params.preserved_tokens;
+    llama_params["generation_prompt"] = chat_params.generation_prompt;
     for (const auto & stop : chat_params.additional_stops) {
         llama_params["stop"].push_back(stop);
     }
     if (!chat_params.parser.empty()) {
         llama_params["chat_parser"] = chat_params.parser;
+    }
+
+    // Reasoning budget: pass parameters through to sampling layer
+    {
+        int reasoning_budget = opt.reasoning_budget;
+        if (reasoning_budget == -1 && body.contains("thinking_budget_tokens")) {
+            reasoning_budget = json_value(body, "thinking_budget_tokens", -1);
+        }
+
+        if (!chat_params.thinking_end_tag.empty()) {
+            llama_params["reasoning_budget_tokens"] = reasoning_budget;
+            llama_params["reasoning_budget_start_tag"] = chat_params.thinking_start_tag;
+            llama_params["reasoning_budget_end_tag"] = chat_params.thinking_end_tag;
+            llama_params["reasoning_budget_message"] = opt.reasoning_budget_message;
+        }
     }
 
     // Handle "logprobs" field
@@ -1257,17 +1286,27 @@ json convert_responses_to_chatcmpl(const json & response_body) {
 
                 for (const auto & output_text : item.at("content")) {
                     const std::string type = json_value(output_text, "type", std::string());
-                    if (type != "output_text") {
-                        throw std::invalid_argument("'type' must be 'output_text'");
+                    if (type == "output_text") {
+                        if (!exists_and_is_string(output_text, "text")) {
+                            throw std::invalid_argument("'Output text' requires 'text'");
+                            // Ignore annotations and logprobs for now
+                            chatcmpl_content.push_back({
+                                {"text", output_text.at("text")},
+                                {"type", "text"},
+                            });
+                        }
+                    } else if (type == "refusal") {
+                        if (!exists_and_is_string(output_text, "refusal")) {
+                            throw std::invalid_argument("'Refusal' requires 'refusal'");
+                            // Ignore annotations and logprobs for now
+                            chatcmpl_content.push_back({
+                                {"refusal", output_text.at("refusal")},
+                                {"type", "refusal"},
+                            });
+                        }
+                    } else {
+                        throw std::invalid_argument("'type' must be one of 'output_text' or 'refusal'");
                     }
-                    if (!exists_and_is_string(output_text, "text")) {
-                        throw std::invalid_argument("'Output text' requires 'text'");
-                    }
-                    // Ignore annotations and logprobs for now
-                    chatcmpl_content.push_back({
-                        {"text", output_text.at("text")},
-                        {"type", "text"},
-                    });
                 }
 
                 if (merge_prev) {
@@ -1406,6 +1445,60 @@ json convert_responses_to_chatcmpl(const json & response_body) {
     return chatcmpl_body;
 }
 
+json convert_transcriptions_to_chatcmpl(
+        const json & inp_body,
+        const std::map<std::string, raw_buffer> & in_files,
+        std::vector<raw_buffer> & out_files) {
+    // TODO @ngxson : this function may need to be improved in the future
+    // handle input files
+    out_files.clear();
+    auto it = in_files.find("file");
+    if (it != in_files.end()) {
+        out_files.push_back(it->second);
+    } else {
+        throw std::invalid_argument("No input file found for transcription");
+    }
+
+    // handle input data
+    std::string prompt = json_value(inp_body, "prompt", std::string());
+    std::string language = json_value(inp_body, "language", std::string());
+    std::string response_format = json_value(inp_body, "response_format", std::string("json"));
+    if (response_format != "json") {
+        throw std::invalid_argument("Only 'json' response_format is supported for transcription");
+    }
+    if (prompt.empty()) {
+        prompt = "Transcribe audio to text";
+    }
+    if (!language.empty()) {
+        prompt += string_format(" (language: %s)", language.c_str());
+    }
+    prompt += get_media_marker();
+
+    json chatcmpl_body = inp_body; // copy all fields
+    chatcmpl_body["messages"] = json::array({
+        {
+            {"role", "user"},
+            {"content", prompt},
+        },
+    });
+
+    // because input from form-data, everything is string, we need to correct the types here
+    std::string stream = json_value(inp_body, "stream", std::string("false"));
+    chatcmpl_body["stream"] = stream == "true";
+
+    if (inp_body.contains("max_tokens")) {
+        std::string inp = inp_body["max_tokens"].get<std::string>();
+        chatcmpl_body["max_tokens"] = std::stoul(inp);
+    }
+
+    if (inp_body.contains("temperature")) {
+        std::string inp = inp_body["temperature"].get<std::string>();
+        chatcmpl_body["temperature"] = std::stof(inp);
+    }
+
+    return chatcmpl_body;
+}
+
 json convert_anthropic_to_oai(const json & body) {
     json oai_body;
 
@@ -1463,6 +1556,7 @@ json convert_anthropic_to_oai(const json & body) {
             json tool_calls = json::array();
             json converted_content = json::array();
             json tool_results = json::array();
+            std::string reasoning_content;
             bool has_tool_calls = false;
 
             for (const auto & block : content) {
@@ -1470,6 +1564,8 @@ json convert_anthropic_to_oai(const json & body) {
 
                 if (type == "text") {
                     converted_content.push_back(block);
+                } else if (type == "thinking") {
+                    reasoning_content += json_value(block, "thinking", std::string());
                 } else if (type == "image") {
                     json source = json_value(block, "source", json::object());
                     std::string source_type = json_value(source, "type", std::string());
@@ -1528,15 +1624,18 @@ json convert_anthropic_to_oai(const json & body) {
                 }
             }
 
-            if (!converted_content.empty() || has_tool_calls) {
+            if (!converted_content.empty() || has_tool_calls || !reasoning_content.empty()) {
                 json new_msg = {{"role", role}};
                 if (!converted_content.empty()) {
                     new_msg["content"] = converted_content;
-                } else if (has_tool_calls) {
+                } else if (has_tool_calls || !reasoning_content.empty()) {
                     new_msg["content"] = "";
                 }
                 if (!tool_calls.empty()) {
                     new_msg["tool_calls"] = tool_calls;
+                }
+                if (!reasoning_content.empty()) {
+                    new_msg["reasoning_content"] = reasoning_content;
                 }
                 oai_messages.push_back(new_msg);
             }
