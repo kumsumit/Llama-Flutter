@@ -1,0 +1,9 @@
+# Exclude vendored llama.cpp source (large C++ library, not needed by pub.dev consumers)
+android/src/main/cpp/llama.cpp/
+CLAUDE.md
+
+# Exclude dev tooling and docs
+docs/
+.dual-graph/
+.llama_cpp_version
+example/

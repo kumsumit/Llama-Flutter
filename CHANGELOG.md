@@ -1,3 +1,8 @@
+## 0.1.3 (April 17, 2026)
+
+### Updated
+- Vendored llama.cpp updated to release b8824 (April 2026)
+
 ## 0.1.2 (March 5, 2026)
 
 ### Updated
