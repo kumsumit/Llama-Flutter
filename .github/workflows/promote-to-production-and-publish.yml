@@ -30,6 +30,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.dev_ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Push to production repository master
         if: github.event.inputs.sync_to_production == 'true'
@@ -46,12 +47,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Remove the extraheader injected by actions/checkout so our PAT takes effect
-          git config --local --unset-all http.https://github.com/.extraheader || true
-          git config --global --unset-all http.https://github.com/.extraheader || true
-
           git remote add production "https://${PRODUCTION_REPO_PAT}@github.com/dragneel2074/Llama-Flutter.git"
-          git -c http.extraheader="" push production HEAD:master
+          git push production HEAD:master
 
       - name: Setup Flutter
         if: github.event.inputs.publish_pub_dev == 'true'
