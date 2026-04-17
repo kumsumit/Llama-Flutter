@@ -46,6 +46,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # Debug: verify token is non-empty (GitHub masks the actual value)
+          echo "Token length: ${#PRODUCTION_REPO_PAT}"
+          echo "Token prefix: ${PRODUCTION_REPO_PAT:0:4}"
+
           git remote add production "https://${PRODUCTION_REPO_PAT}@github.com/dragneel2074/Llama-Flutter.git"
           git push production HEAD:master
 
