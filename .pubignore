@@ -18,3 +18,15 @@ example/build/
 example/.dart_tool/
 example/android/.gradle/
 example/android/build/
+
+# llama.cpp subdirs not needed for Android build
+android/src/main/cpp/llama.cpp/examples/
+android/src/main/cpp/llama.cpp/tests/
+android/src/main/cpp/llama.cpp/benches/
+android/src/main/cpp/llama.cpp/ci/
+android/src/main/cpp/llama.cpp/tools/
+android/src/main/cpp/llama.cpp/docs/
+android/src/main/cpp/llama.cpp/.devops/
+android/src/main/cpp/llama.cpp/.github/
+android/src/main/cpp/llama.cpp/scripts/
+android/src/main/cpp/llama.cpp/media/
