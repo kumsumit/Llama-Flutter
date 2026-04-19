@@ -1,3 +1,8 @@
+## 0.2.1 (April 19, 2026)
+
+### Fixed
+- Published package now includes `CMakeLists.txt` — wildcard `*.txt` in `.pubignore` was incorrectly excluding it, causing empty build directory
+
 ## 0.2.0 (April 18, 2026)
 
 ### Added
