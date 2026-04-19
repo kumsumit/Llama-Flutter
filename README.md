@@ -32,10 +32,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  llama_flutter_android:
-    git:
-      url: https://github.com/dragneel2074/Llama-Flutter.git
-      ref: master
+  llama_flutter_android: ^0.2.0
 ```
 
 ## Quick Start
@@ -51,7 +48,7 @@ final controller = LlamaController();
 // Load model
 await controller.loadModel(
   modelPath: '/path/to/model.gguf',
-  nThreads: 4,
+  threads: 4,
   contextSize: 2048,
 );
 
@@ -189,7 +186,8 @@ The main interface for working with llama.cpp models.
 - Sampling: `temperature`, `topP`, `topK`, `minP`, `typicalP`
 - Penalties: `repeatPenalty`, `frequencyPenalty`, `presencePenalty`, `repeatLastN`, `penalizeNl`
 - Mirostat: `mirostat`, `mirostatTau`, `mirostatEta`
-- Advanced: `tfsZ`, `locallyTypical`
+- Context: `getContextInfo()`, `clearContext()`, `setSystemPromptLength()`
+- Templates: `getSupportedTemplates()`, `registerCustomTemplate()`, `unregisterCustomTemplate()`
 
 **Supported Chat Templates:**
 - `chatml` - ChatML format (default)
