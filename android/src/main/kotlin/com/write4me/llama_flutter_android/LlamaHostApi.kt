@@ -50,14 +50,22 @@ class FlutterError (
 ) : Throwable()
 
 /**
- * Configuration for model loading
+ * Configuration for loading a GGUF model.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class ModelConfig (
+  /** Absolute path to the `.gguf` model file on device storage. */
   val modelPath: String,
+  /** Number of CPU threads to use for inference. */
   val nThreads: Long,
+  /** KV-cache context size in tokens. Larger values use more RAM. */
   val contextSize: Long,
+  /**
+   * Number of model layers to offload to GPU via Vulkan.
+   * Use [LlamaController.detectGpu] to get a device-appropriate value.
+   * Null or 0 = CPU only. 99 = full offload (clamped to model's layer count).
+   */
   val nGpuLayers: Long? = null
 )
  {
@@ -81,13 +89,14 @@ data class ModelConfig (
 }
 
 /**
- * Chat message
+ * A single message in a chat conversation.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class ChatMessage (
-  /** Role: 'system', 'user', or 'assistant' */
+  /** Role of the message sender: `'system'`, `'user'`, or `'assistant'`. */
   val role: String,
+  /** Text content of the message. */
   val content: String
 )
  {
@@ -174,13 +183,16 @@ data class GenerateRequest (
 }
 
 /**
- * Request for chat generation with template formatting
+ * Request for chat generation with automatic template formatting.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class ChatRequest (
+  /** Conversation history including system, user, and assistant messages. */
   val messages: List<ChatMessage>,
+  /** Chat template name (e.g. `'chatml'`, `'llama3'`). Null = auto-detect from model filename. */
   val template: String? = null,
+  /** Maximum number of tokens to generate. */
   val maxTokens: Long,
   val temperature: Double,
   val topP: Double,
@@ -244,13 +256,16 @@ data class ChatRequest (
 }
 
 /**
- * Context usage information
+ * Current KV-cache context usage for a loaded model.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class ContextInfo (
+  /** Number of tokens currently occupying the KV cache. */
   val tokensUsed: Long,
+  /** Total KV-cache capacity in tokens (set at model load time). */
   val contextSize: Long,
+  /** Percentage of context used (0.0–100.0). */
   val usagePercentage: Double
 )
  {
@@ -267,6 +282,57 @@ data class ContextInfo (
       tokensUsed,
       contextSize,
       usagePercentage,
+    )
+  }
+}
+
+/**
+ * GPU detection result
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class GpuInfo (
+  /** True only if Vulkan instance created AND compute queue confirmed */
+  val vulkanSupported: Boolean,
+  /** e.g. "Adreno (TM) 740" or "Mali-G715". "None" if unsupported. */
+  val gpuName: String,
+  /** Vulkan API version integer (e.g. 4206592 = 1.3.0). -1 if unsupported. */
+  val vulkanApiVersion: Long,
+  /**
+   * Largest VK_MEMORY_HEAP_DEVICE_LOCAL_BIT heap in bytes.
+   * On Android UMA this equals total system RAM — NOT dedicated VRAM.
+   * -1 if unknown.
+   */
+  val deviceLocalMemoryBytes: Long,
+  /** System free RAM from ActivityManager in bytes (before safety factor). -1 if unknown. */
+  val freeRamBytes: Long,
+  /**
+   * Non-binding suggestion: 0, 16, or 99.
+   * llama.cpp clamps 99 to the model's actual layer count.
+   * Caller always makes the final decision.
+   */
+  val recommendedGpuLayers: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): GpuInfo {
+      val vulkanSupported = pigeonVar_list[0] as Boolean
+      val gpuName = pigeonVar_list[1] as String
+      val vulkanApiVersion = pigeonVar_list[2] as Long
+      val deviceLocalMemoryBytes = pigeonVar_list[3] as Long
+      val freeRamBytes = pigeonVar_list[4] as Long
+      val recommendedGpuLayers = pigeonVar_list[5] as Long
+      return GpuInfo(vulkanSupported, gpuName, vulkanApiVersion, deviceLocalMemoryBytes, freeRamBytes, recommendedGpuLayers)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      vulkanSupported,
+      gpuName,
+      vulkanApiVersion,
+      deviceLocalMemoryBytes,
+      freeRamBytes,
+      recommendedGpuLayers,
     )
   }
 }
@@ -298,6 +364,11 @@ private open class LlamaHostApiPigeonCodec : StandardMessageCodec() {
           ContextInfo.fromList(it)
         }
       }
+      134.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          GpuInfo.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -321,6 +392,10 @@ private open class LlamaHostApiPigeonCodec : StandardMessageCodec() {
       }
       is ContextInfo -> {
         stream.write(133)
+        writeValue(stream, value.toList())
+      }
+      is GpuInfo -> {
+        stream.write(134)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -359,6 +434,11 @@ interface LlamaHostApi {
   fun registerCustomTemplate(name: String, content: String)
   /** Unregister a custom template */
   fun unregisterCustomTemplate(name: String)
+  /**
+   * Detect GPU capabilities. Returns Vulkan device info and a non-binding
+   * recommendedGpuLayers value. Caller decides actual gpuLayers to use.
+   */
+  fun detectGpu(callback: (Result<GpuInfo>) -> Unit)
 
   companion object {
     /** The codec used by LlamaHostApi. */
@@ -572,6 +652,24 @@ interface LlamaHostApi {
               wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.detectGpu$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.detectGpu{ result: Result<GpuInfo> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)

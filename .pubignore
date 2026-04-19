@@ -1,10 +1,20 @@
-# Exclude vendored llama.cpp source (large C++ library, not needed by pub.dev consumers)
-android/src/main/cpp/llama.cpp/
-CLAUDE.md
-llama.zip
-
-# Exclude dev tooling and docs
-docs/
+# Internal tooling — not needed by package consumers
+.claude/
 .dual-graph/
-.llama_cpp_version
-example/
+.qwen/
+docs/
+
+# Dev-only markdown files
+CHANGELOG_FLLAMA_INTEGRATION.md
+CONTEXT_AUTO_CLEAR_FIX.md
+FLLAMA_COMPARISON.md
+SIMPLE_CONTEXT_COMPLETE.md
+SIMPLE_FINAL.md
+README_REPO.md
+CONTEXT.md
+
+# Example build artifacts
+example/build/
+example/.dart_tool/
+example/android/.gradle/
+example/android/build/

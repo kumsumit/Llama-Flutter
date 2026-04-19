@@ -197,10 +197,27 @@ class LlamaController implements LlamaFlutterApi {
   }
 
   /// Unregister a custom chat template
-  /// 
+  ///
   /// Removes a previously registered custom template
   Future<void> unregisterCustomTemplate(String name) async {
     await _api.unregisterCustomTemplate(name);
+  }
+
+  /// Detect GPU capabilities on this device.
+  ///
+  /// Returns [GpuInfo] with Vulkan device details and a non-binding
+  /// [GpuInfo.recommendedGpuLayers] value.
+  ///
+  /// Notes:
+  /// - [GpuInfo.deviceLocalMemoryBytes] reflects the largest device-local
+  ///   Vulkan heap. On Android (UMA), this equals total system RAM, not
+  ///   dedicated VRAM.
+  /// - [GpuInfo.vulkanSupported] is true only when both a Vulkan instance
+  ///   and a compute queue were confirmed. Vulkan availability does not
+  ///   guarantee GPU is faster than CPU for a given model.
+  /// - The caller is responsible for the final [ModelConfig.nGpuLayers] decision.
+  Future<GpuInfo> detectGpu() async {
+    return await _api.detectGpu();
   }
 
   // Implementation of LlamaFlutterApi interface methods

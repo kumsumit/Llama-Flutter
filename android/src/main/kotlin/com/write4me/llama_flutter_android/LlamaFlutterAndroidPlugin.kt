@@ -1,5 +1,6 @@
 package com.write4me.llama_flutter_android
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
@@ -306,6 +307,70 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
         ChatTemplateManager.unregisterCustomTemplate(name)
     }
 
+    override fun detectGpu(callback: (Result<GpuInfo>) -> Unit) {
+        scope.launch {
+            try {
+                val outStats = LongArray(2) { -1L }
+                val gpuName: String? = nativeDetectGpu(outStats)
+                val vulkanSupported = gpuName != null
+                val apiVersion = outStats[0]
+                val deviceLocalMemory = outStats[1]
+
+                val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val memInfo = ActivityManager.MemoryInfo()
+                activityManager.getMemoryInfo(memInfo)
+                val freeRamBytes = memInfo.availMem
+
+                val recommendedGpuLayers = computeRecommendedLayers(
+                    vulkanSupported = vulkanSupported,
+                    gpuName = gpuName ?: "",
+                    freeRamBytes = freeRamBytes,
+                    deviceLocalMemoryBytes = deviceLocalMemory
+                )
+
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(GpuInfo(
+                        vulkanSupported = vulkanSupported,
+                        gpuName = gpuName ?: "None",
+                        vulkanApiVersion = apiVersion,
+                        deviceLocalMemoryBytes = deviceLocalMemory,
+                        freeRamBytes = freeRamBytes,
+                        recommendedGpuLayers = recommendedGpuLayers.toLong()
+                    )))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(GpuInfo(
+                        vulkanSupported = false,
+                        gpuName = "None",
+                        vulkanApiVersion = -1L,
+                        deviceLocalMemoryBytes = -1L,
+                        freeRamBytes = -1L,
+                        recommendedGpuLayers = 0L
+                    )))
+                }
+            }
+        }
+    }
+
+    private fun computeRecommendedLayers(
+        vulkanSupported: Boolean,
+        gpuName: String,
+        freeRamBytes: Long,
+        deviceLocalMemoryBytes: Long
+    ): Int {
+        val GB = 1_073_741_824L
+        val safeRam = (freeRamBytes * 0.7).toLong()
+        return when {
+            !vulkanSupported -> 0
+            gpuName.contains("Mali", ignoreCase = true) -> 0
+            safeRam < GB -> 0                                          // < 1 GB — truly too low
+            safeRam < 2 * GB && deviceLocalMemoryBytes < 3 * GB -> 0  // low RAM + low VRAM
+            safeRam < 3 * GB || deviceLocalMemoryBytes < 2 * GB -> 16 // partial offload
+            else -> 99                                                  // full offload
+        }
+    }
+
     // Native methods
     private external fun nativeLoadModel(
         path: String,
@@ -341,4 +406,6 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     private external fun nativeGetContextSize(): Int
     private external fun nativeClearContext()
     private external fun nativeSetSystemPromptLength(length: Int)
+    private external fun nativeDetectGpu(outStats: LongArray): String?
+    // outStats[0] = vulkanApiVersion, outStats[1] = deviceLocalMemoryBytes
 }

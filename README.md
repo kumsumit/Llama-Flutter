@@ -14,6 +14,8 @@ Run GGUF models on Android with [llama.cpp](https://github.com/ggerganov/llama.c
 - **18 Parameters** - Complete control: temperature, penalties, mirostat, seed, and more
 - **7 Chat Templates** - ChatML, Llama-2, Alpaca, Vicuna, Phi, Gemma, Zephyr
 - **Auto-Detection** - Chat templates detected from model filename
+- **Vulkan GPU Acceleration** - Real GPU inference via `GGML_VULKAN` on supported devices
+- **GPU Detection API** - `detectGpu()` returns device name, Vulkan support, memory info, and a recommended layer count
 - **Latest llama.cpp** - Built on March 4, 2026 llama.cpp release (b8201)
 - **ARM64 Optimized** - NEON and dot product optimizations enabled
 
@@ -116,6 +118,34 @@ controller.generate(
 // Stop anytime!
 await controller.stop();
 ```
+
+### GPU Detection
+
+```dart
+// Detect GPU capabilities before loading a model
+final gpu = await controller.detectGpu();
+
+print('Vulkan supported: ${gpu.vulkanSupported}');
+print('GPU: ${gpu.gpuName}');                          // e.g. "Adreno (TM) 740"
+print('Free RAM: ${gpu.freeRamBytes ~/ 1024 ~/ 1024} MB');
+print('Recommended layers: ${gpu.recommendedGpuLayers}'); // 0, 16, or 99
+
+// Use the recommendation (or override it)
+await controller.loadModel(
+  modelPath: '/path/to/model.gguf',
+  gpuLayers: gpu.recommendedGpuLayers, // 0 = CPU only, 99 = full GPU offload
+);
+```
+
+**`recommendedGpuLayers` values:**
+
+| Value | Meaning |
+|---|---|
+| `0` | CPU only — no Vulkan, Mali GPU, or insufficient RAM |
+| `16` | Partial offload — Vulkan supported but limited RAM/VRAM |
+| `99` | Full offload — llama.cpp clamps to model's actual layer count |
+
+> **Note:** `deviceLocalMemoryBytes` on Android equals total system RAM (unified memory architecture), not dedicated VRAM. Use `freeRamBytes` for memory pressure decisions.
 
 ## Architecture
 

@@ -19,6 +19,7 @@ endif()
 # llama.cpp options
 set(GGML_CPU_AARCH64 ON CACHE BOOL "Enable ARM64 support")
 set(GGML_DOTPROD ON CACHE BOOL "Enable ARM NEON dot product")
+set(GGML_VULKAN ON CACHE BOOL "Enable Vulkan GPU backend")
 set(GGML_STATIC OFF CACHE BOOL "Build as shared library")
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
 
@@ -35,10 +36,13 @@ add_library(llama_jni SHARED
     src/main/cpp/jni_wrapper.cpp
 )
 
+find_library(VULKAN_LIB vulkan)
+
 target_link_libraries(llama_jni
     llama
     android
     log
+    ${VULKAN_LIB}
 )
 
 target_include_directories(llama_jni PRIVATE

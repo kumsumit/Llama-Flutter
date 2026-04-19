@@ -25,7 +25,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   return <Object?>[error.code, error.message, error.details];
 }
 
-/// Configuration for model loading
+/// Configuration for loading a GGUF model.
 class ModelConfig {
   ModelConfig({
     required this.modelPath,
@@ -34,12 +34,18 @@ class ModelConfig {
     this.nGpuLayers,
   });
 
+  /// Absolute path to the `.gguf` model file on device storage.
   String modelPath;
 
+  /// Number of CPU threads to use for inference.
   int nThreads;
 
+  /// KV-cache context size in tokens. Larger values use more RAM.
   int contextSize;
 
+  /// Number of model layers to offload to GPU via Vulkan.
+  /// Use [LlamaController.detectGpu] to get a device-appropriate value.
+  /// Null or 0 = CPU only. 99 = full offload (clamped to model's layer count).
   int? nGpuLayers;
 
   Object encode() {
@@ -62,16 +68,17 @@ class ModelConfig {
   }
 }
 
-/// Chat message
+/// A single message in a chat conversation.
 class ChatMessage {
   ChatMessage({
     required this.role,
     required this.content,
   });
 
-  /// Role: 'system', 'user', or 'assistant'
+  /// Role of the message sender: `'system'`, `'user'`, or `'assistant'`.
   String role;
 
+  /// Text content of the message.
   String content;
 
   Object encode() {
@@ -187,7 +194,7 @@ class GenerateRequest {
   }
 }
 
-/// Request for chat generation with template formatting
+/// Request for chat generation with automatic template formatting.
 class ChatRequest {
   ChatRequest({
     required this.messages,
@@ -209,10 +216,13 @@ class ChatRequest {
     required this.penalizeNewline,
   });
 
+  /// Conversation history including system, user, and assistant messages.
   List<ChatMessage> messages;
 
+  /// Chat template name (e.g. `'chatml'`, `'llama3'`). Null = auto-detect from model filename.
   String? template;
 
+  /// Maximum number of tokens to generate.
   int maxTokens;
 
   double temperature;
@@ -289,7 +299,7 @@ class ChatRequest {
   }
 }
 
-/// Context usage information
+/// Current KV-cache context usage for a loaded model.
 class ContextInfo {
   ContextInfo({
     required this.tokensUsed,
@@ -297,10 +307,13 @@ class ContextInfo {
     required this.usagePercentage,
   });
 
+  /// Number of tokens currently occupying the KV cache.
   int tokensUsed;
 
+  /// Total KV-cache capacity in tokens (set at model load time).
   int contextSize;
 
+  /// Percentage of context used (0.0–100.0).
   double usagePercentage;
 
   Object encode() {
@@ -317,6 +330,63 @@ class ContextInfo {
       tokensUsed: result[0]! as int,
       contextSize: result[1]! as int,
       usagePercentage: result[2]! as double,
+    );
+  }
+}
+
+/// GPU detection result
+class GpuInfo {
+  GpuInfo({
+    required this.vulkanSupported,
+    required this.gpuName,
+    required this.vulkanApiVersion,
+    required this.deviceLocalMemoryBytes,
+    required this.freeRamBytes,
+    required this.recommendedGpuLayers,
+  });
+
+  /// True only if Vulkan instance created AND compute queue confirmed
+  bool vulkanSupported;
+
+  /// e.g. "Adreno (TM) 740" or "Mali-G715". "None" if unsupported.
+  String gpuName;
+
+  /// Vulkan API version integer (e.g. 4206592 = 1.3.0). -1 if unsupported.
+  int vulkanApiVersion;
+
+  /// Largest VK_MEMORY_HEAP_DEVICE_LOCAL_BIT heap in bytes.
+  /// On Android UMA this equals total system RAM — NOT dedicated VRAM.
+  /// -1 if unknown.
+  int deviceLocalMemoryBytes;
+
+  /// System free RAM from ActivityManager in bytes (before safety factor). -1 if unknown.
+  int freeRamBytes;
+
+  /// Non-binding suggestion: 0, 16, or 99.
+  /// llama.cpp clamps 99 to the model's actual layer count.
+  /// Caller always makes the final decision.
+  int recommendedGpuLayers;
+
+  Object encode() {
+    return <Object?>[
+      vulkanSupported,
+      gpuName,
+      vulkanApiVersion,
+      deviceLocalMemoryBytes,
+      freeRamBytes,
+      recommendedGpuLayers,
+    ];
+  }
+
+  static GpuInfo decode(Object result) {
+    result as List<Object?>;
+    return GpuInfo(
+      vulkanSupported: result[0]! as bool,
+      gpuName: result[1]! as String,
+      vulkanApiVersion: result[2]! as int,
+      deviceLocalMemoryBytes: result[3]! as int,
+      freeRamBytes: result[4]! as int,
+      recommendedGpuLayers: result[5]! as int,
     );
   }
 }
@@ -344,6 +414,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is ContextInfo) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
+    }    else if (value is GpuInfo) {
+      buffer.putUint8(134);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -362,6 +435,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return ChatRequest.decode(readValue(buffer)!);
       case 133: 
         return ContextInfo.decode(readValue(buffer)!);
+      case 134: 
+        return GpuInfo.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -670,6 +745,35 @@ class LlamaHostApi {
       );
     } else {
       return;
+    }
+  }
+
+  /// Detect GPU capabilities. Returns Vulkan device info and a non-binding
+  /// recommendedGpuLayers value. Caller decides actual gpuLayers to use.
+  Future<GpuInfo> detectGpu() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.llama_flutter_android.LlamaHostApi.detectGpu$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as GpuInfo?)!;
     }
   }
 }

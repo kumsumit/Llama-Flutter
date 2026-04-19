@@ -1,7 +1,20 @@
-## 0.1.3 (April 17, 2026)
+## 0.2.0 (April 18, 2026)
 
-### Updated
-- Vendored llama.cpp updated to release b8824 (April 2026)
+### Added
+- **Vulkan GPU backend** — `GGML_VULKAN` now compiled into the native `.so`; `gpuLayers` parameter is no longer silently ignored on supported devices
+- **`detectGpu()` API** — new `LlamaController.detectGpu()` method returns `GpuInfo` with:
+  - `vulkanSupported` — true only when Vulkan instance **and** a compute queue are confirmed
+  - `gpuName` — real device name from Vulkan (e.g. "Adreno (TM) 740")
+  - `vulkanApiVersion` — Vulkan API version integer
+  - `deviceLocalMemoryBytes` — largest device-local heap (note: equals system RAM on Android UMA devices)
+  - `freeRamBytes` — current free system RAM via `ActivityManager`
+  - `recommendedGpuLayers` — non-binding suggestion (0, 16, or 99); caller always decides final `gpuLayers`
+- **Smart GPU heuristic** — recommendation accounts for Mali GPU instability, 0.7× RAM safety factor, and device-local memory size
+- **`GpuInfo`** exported from the public package API
+
+### Notes
+- Vulkan detection does not guarantee GPU is faster than CPU for a given model — `vulkanSupported` answers "can I try GPU?", not "will GPU be faster?"
+- Mali GPUs default to `recommendedGpuLayers: 0` due to known llama.cpp Vulkan instability on that architecture
 
 ## 0.1.2 (March 5, 2026)
 

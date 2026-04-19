@@ -6,6 +6,7 @@
 #include <cstring>
 #include <android/log.h>
 #include "llama.cpp/include/llama.h"
+#include <vulkan/vulkan.h>
 
 
 #define LOG_TAG "LlamaJNI"
@@ -146,6 +147,107 @@ static std::string sanitizeUTF8(const char* str, size_t len) {
     }
     
     return result;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_write4me_llama_1flutter_1android_LlamaFlutterAndroidPlugin_nativeDetectGpu(
+        JNIEnv* env, jobject /* this */, jlongArray outStats) {
+
+    // Zero out output array as safe default (-1 = unknown)
+    jlong defaults[2] = {-1L, -1L};
+    env->SetLongArrayRegion(outStats, 0, 2, defaults);
+
+    // Minimal instance — no extensions, no validation layers (crash risk on some devices)
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.apiVersion = VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+    createInfo.enabledExtensionCount = 0;
+    createInfo.ppEnabledExtensionNames = nullptr;
+    createInfo.enabledLayerCount = 0;
+    createInfo.ppEnabledLayerNames = nullptr;
+
+    VkInstance instance = VK_NULL_HANDLE;
+    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
+        LOGI("nativeDetectGpu: vkCreateInstance failed — no Vulkan");
+        return nullptr;
+    }
+
+    // Enumerate physical devices
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0) {
+        LOGI("nativeDetectGpu: no physical devices found");
+        vkDestroyInstance(instance, nullptr);
+        return nullptr;
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    // Select device with the largest device-local memory heap
+    VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
+    VkDeviceSize bestHeapSize = 0;
+
+    for (auto& dev : devices) {
+        VkPhysicalDeviceMemoryProperties memProps{};
+        vkGetPhysicalDeviceMemoryProperties(dev, &memProps);
+        for (uint32_t i = 0; i < memProps.memoryHeapCount; i++) {
+            if ((memProps.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) &&
+                memProps.memoryHeaps[i].size > bestHeapSize) {
+                bestHeapSize = memProps.memoryHeaps[i].size;
+                bestDevice = dev;
+            }
+        }
+    }
+
+    if (bestDevice == VK_NULL_HANDLE) {
+        LOGI("nativeDetectGpu: no device-local memory found");
+        vkDestroyInstance(instance, nullptr);
+        return nullptr;
+    }
+
+    // Check for compute queue support
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(bestDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(bestDevice, &queueFamilyCount, queueFamilies.data());
+
+    bool hasComputeQueue = false;
+    for (auto& qf : queueFamilies) {
+        if (qf.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+            hasComputeQueue = true;
+            break;
+        }
+    }
+
+    if (!hasComputeQueue) {
+        LOGI("nativeDetectGpu: no compute queue — GPU not usable for inference");
+        vkDestroyInstance(instance, nullptr);
+        return nullptr;
+    }
+
+    // Read device properties
+    VkPhysicalDeviceProperties props{};
+    vkGetPhysicalDeviceProperties(bestDevice, &props);
+
+    // Populate outStats
+    jlong stats[2];
+    stats[0] = static_cast<jlong>(props.apiVersion);
+    stats[1] = static_cast<jlong>(bestHeapSize);
+    env->SetLongArrayRegion(outStats, 0, 2, stats);
+
+    LOGI("nativeDetectGpu: GPU='%s' apiVersion=%u heapSize=%llu hasCompute=%d",
+         props.deviceName,
+         props.apiVersion,
+         (unsigned long long)bestHeapSize,
+         hasComputeQueue ? 1 : 0);
+
+    vkDestroyInstance(instance, nullptr);
+    return env->NewStringUTF(props.deviceName);
 }
 
 extern "C" JNIEXPORT void JNICALL
