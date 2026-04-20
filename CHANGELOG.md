@@ -1,3 +1,9 @@
+## 0.2.3 (April 20, 2026)
+
+### Fixed
+- Disable `GGML_VULKAN` — NDK 27 lacks `vulkan.hpp` and the shader compiler (`vulkan-shaders-gen`) fails to build on Windows cross-compile
+- `detectGpu()` still works fully via the C Vulkan header; GPU layer offloading will be re-enabled when a Linux CI with a proper Vulkan SDK is available
+
 ## 0.2.2 (April 19, 2026)
 
 ### Fixed
