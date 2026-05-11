@@ -1,33 +1,16 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-group = "com.write4me.llama_flutter_android"
-version = "1.0.0"
-
-// Define extra properties BEFORE buildscript
-extra["kotlinVersion"] = "2.3.21"
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:8.13.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.21")
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
 
 plugins {
     id("com.android.library")
-    id("kotlin-android")
 }
+
+group = "com.write4me.llama_flutter_android"
+version = "1.0.0"
+
+repositories {
+        google()
+        mavenCentral()
+    }
 
 android {
     namespace = "com.write4me.llama_flutter_android"
