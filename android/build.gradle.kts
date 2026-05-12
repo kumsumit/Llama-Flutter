@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.library")
+    id("org.jetbrains.kotlin.android")
 }
 
 group = "com.write4me.llama_flutter_android"
@@ -21,12 +22,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_21)
-        }
     }
 
     sourceSets {
@@ -72,18 +67,24 @@ android {
         }
     }
 
-    dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-        
-        testImplementation("org.jetbrains.kotlin:kotlin-test")
-        testImplementation("org.mockito:mockito-core:5.23.0")
-    }
-
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
         }
     }
 }
+
+ kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_21)
+        }
+    }
+
+dependencies {
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+        
+        testImplementation("org.jetbrains.kotlin:kotlin-test")
+        testImplementation("org.mockito:mockito-core:5.23.0")
+    }    
