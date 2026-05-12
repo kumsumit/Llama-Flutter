@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:llama_flutter_android/llama_flutter_android.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('LlamaController can be instantiated', () {
     final controller = LlamaController();
     expect(controller, isNotNull);

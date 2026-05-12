@@ -4,18 +4,16 @@ import 'llama_api.dart';
 
 /// User-friendly controller for llama.cpp
 class LlamaController implements LlamaFlutterApi {
-  final _api = LlamaHostApi();
+  final LlamaHostApi _api;
   StreamController<String>? _tokenController;
   final _progressController = StreamController<double>.broadcast();
-  
+
   bool _isLoading = false;
   bool _isGenerating = false;
 
-  LlamaController({BinaryMessenger? binaryMessenger}) {
-    LlamaFlutterApi.setUp(
-      this,
-      binaryMessenger: binaryMessenger,
-    );
+  LlamaController({BinaryMessenger? binaryMessenger})
+    : _api = LlamaHostApi(binaryMessenger: binaryMessenger) {
+    LlamaFlutterApi.setUp(this, binaryMessenger: binaryMessenger);
   }
 
   /// Load a GGUF model
@@ -31,12 +29,14 @@ class LlamaController implements LlamaFlutterApi {
 
     _isLoading = true;
     try {
-      await _api.loadModel(ModelConfig(
-        modelPath: modelPath,
-        nThreads: threads,
-        contextSize: contextSize,
-        nGpuLayers: gpuLayers,
-      ));
+      await _api.loadModel(
+        ModelConfig(
+          modelPath: modelPath,
+          nThreads: threads,
+          contextSize: contextSize,
+          nGpuLayers: gpuLayers,
+        ),
+      );
     } finally {
       _isLoading = false;
     }
@@ -67,26 +67,28 @@ class LlamaController implements LlamaFlutterApi {
 
     _isGenerating = true;
     _tokenController = StreamController<String>.broadcast();
-    
+
     // Start generation
-    _api.generate(GenerateRequest(
-      prompt: prompt,
-      maxTokens: maxTokens,
-      temperature: temperature,
-      topP: topP,
-      topK: topK,
-      minP: minP,
-      typicalP: typicalP,
-      repeatPenalty: repeatPenalty,
-      frequencyPenalty: frequencyPenalty,
-      presencePenalty: presencePenalty,
-      repeatLastN: repeatLastN,
-      mirostat: mirostat,
-      mirostatTau: mirostatTau,
-      mirostatEta: mirostatEta,
-      seed: seed,
-      penalizeNewline: penalizeNewline,
-    ));
+    _api.generate(
+      GenerateRequest(
+        prompt: prompt,
+        maxTokens: maxTokens,
+        temperature: temperature,
+        topP: topP,
+        topK: topK,
+        minP: minP,
+        typicalP: typicalP,
+        repeatPenalty: repeatPenalty,
+        frequencyPenalty: frequencyPenalty,
+        presencePenalty: presencePenalty,
+        repeatLastN: repeatLastN,
+        mirostat: mirostat,
+        mirostatTau: mirostatTau,
+        mirostatEta: mirostatEta,
+        seed: seed,
+        penalizeNewline: penalizeNewline,
+      ),
+    );
 
     return _tokenController!.stream;
   }
@@ -110,7 +112,8 @@ class LlamaController implements LlamaFlutterApi {
   Future<bool> isModelLoaded() async => await _api.isModelLoaded();
 
   /// Get list of supported chat templates
-  Future<List<String>> getSupportedTemplates() async => await _api.getSupportedTemplates();
+  Future<List<String>> getSupportedTemplates() async =>
+      await _api.getSupportedTemplates();
 
   /// Generate chat response with automatic template formatting
   Stream<String> generateChat({
@@ -138,27 +141,29 @@ class LlamaController implements LlamaFlutterApi {
 
     _isGenerating = true;
     _tokenController = StreamController<String>.broadcast();
-    
+
     // Start chat generation
-    _api.generateChat(ChatRequest(
-      messages: messages,
-      template: template,
-      maxTokens: maxTokens,
-      temperature: temperature,
-      topP: topP,
-      topK: topK,
-      minP: minP,
-      typicalP: typicalP,
-      repeatPenalty: repeatPenalty,
-      frequencyPenalty: frequencyPenalty,
-      presencePenalty: presencePenalty,
-      repeatLastN: repeatLastN,
-      mirostat: mirostat,
-      mirostatTau: mirostatTau,
-      mirostatEta: mirostatEta,
-      seed: seed,
-      penalizeNewline: penalizeNewline,
-    ));
+    _api.generateChat(
+      ChatRequest(
+        messages: messages,
+        template: template,
+        maxTokens: maxTokens,
+        temperature: temperature,
+        topP: topP,
+        topK: topK,
+        minP: minP,
+        typicalP: typicalP,
+        repeatPenalty: repeatPenalty,
+        frequencyPenalty: frequencyPenalty,
+        presencePenalty: presencePenalty,
+        repeatLastN: repeatLastN,
+        mirostat: mirostat,
+        mirostatTau: mirostatTau,
+        mirostatEta: mirostatEta,
+        seed: seed,
+        penalizeNewline: penalizeNewline,
+      ),
+    );
 
     return _tokenController!.stream;
   }
@@ -185,12 +190,12 @@ class LlamaController implements LlamaFlutterApi {
   }
 
   /// Register a custom chat template
-  /// 
+  ///
   /// Template content should use placeholders:
   /// - {system} for system messages
   /// - {user} for user messages
   /// - {assistant} for assistant messages
-  /// 
+  ///
   /// Example: "<s>[INST]{user}[/INST]{assistant}</s>"
   Future<void> registerCustomTemplate(String name, String content) async {
     await _api.registerCustomTemplate(name, content);
@@ -241,4 +246,5 @@ class LlamaController implements LlamaFlutterApi {
   @override
   void onLoadProgress(double progress) {
     _progressController.add(progress);
-  }}
+  }
+}

@@ -1,15 +1,55 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llama_flutter_android/llama_flutter_android.dart';
+import 'package:llama_flutter_android/src/llama_api.dart';
+
+const _hostApiPrefix = 'dev.flutter.pigeon.llama_flutter_android.LlamaHostApi';
+
+void _setMockHostHandler(
+  String method,
+  Future<Object?> Function(Object? message) handler,
+) {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockDecodedMessageHandler<Object?>(
+        BasicMessageChannel<Object?>(
+          '$_hostApiPrefix.$method',
+          LlamaHostApi.pigeonChannelCodec,
+        ),
+        (Object? message) async => <Object?>[await handler(message)],
+      );
+}
+
+void _setUpMockTemplateHost() {
+  final templates = <String>{'chatml', 'llama3', 'mistral'};
+
+  _setMockHostHandler('registerCustomTemplate', (Object? message) async {
+    final args = message! as List<Object?>;
+    templates.add(args[0]! as String);
+    return null;
+  });
+  _setMockHostHandler('unregisterCustomTemplate', (Object? message) async {
+    final args = message! as List<Object?>;
+    templates.remove(args[0]! as String);
+    return null;
+  });
+  _setMockHostHandler(
+    'getSupportedTemplates',
+    (_) async => templates.toList(growable: false),
+  );
+}
 
 /// Unit tests for custom template registration
-/// 
+///
 /// These tests verify that the Option 2 implementation works correctly.
 /// Run with: flutter test test/custom_template_test.dart
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Custom Template Registration', () {
     late LlamaController controller;
 
     setUp(() {
+      _setUpMockTemplateHost();
       controller = LlamaController();
     });
 
@@ -20,7 +60,7 @@ void main() {
 
       // Should not throw
       await controller.registerCustomTemplate(templateName, templateContent);
-      
+
       // Verify it's in the supported templates list
       final templates = await controller.getSupportedTemplates();
       expect(templates, contains(templateName));
@@ -28,11 +68,12 @@ void main() {
 
     test('Register template with special characters', () async {
       const templateName = 'special-template';
-      const templateContent = '<|im_start|>{system}<|im_end|>\n{user}\n{assistant}';
+      const templateContent =
+          '<|im_start|>{system}<|im_end|>\n{user}\n{assistant}';
 
       // Should handle special characters
       await controller.registerCustomTemplate(templateName, templateContent);
-      
+
       final templates = await controller.getSupportedTemplates();
       expect(templates, contains(templateName));
     });
@@ -43,10 +84,10 @@ void main() {
 
       // Register first
       await controller.registerCustomTemplate(templateName, templateContent);
-      
+
       // Then unregister
       await controller.unregisterCustomTemplate(templateName);
-      
+
       // Should no longer be in list
       final templates = await controller.getSupportedTemplates();
       expect(templates, isNot(contains(templateName)));
@@ -78,10 +119,10 @@ void main() {
 
       // Should succeed (logs warning but allows override)
       await controller.registerCustomTemplate(templateName, customContent);
-      
+
       final templates = await controller.getSupportedTemplates();
       expect(templates, contains(templateName));
-      
+
       // Note: Can't verify content from Dart side, but Kotlin logs will show override
     });
   });
@@ -89,7 +130,7 @@ void main() {
   group('Template Format Validation', () {
     test('Template with all placeholders', () {
       const template = '{system}\n\n{user}\n\n{assistant}';
-      
+
       // Verify placeholders are present
       expect(template, contains('{system}'));
       expect(template, contains('{user}'));
@@ -98,7 +139,7 @@ void main() {
 
     test('Template with only user and assistant', () {
       const template = '<s>[INST]{user}[/INST]{assistant}</s>';
-      
+
       // System is optional
       expect(template, contains('{user}'));
       expect(template, contains('{assistant}'));
@@ -107,7 +148,7 @@ void main() {
 
     test('Template placeholders are case-sensitive', () {
       const template = '{user} vs {User}';
-      
+
       // Only lowercase is valid
       expect(template, contains('{user}'));
       expect(template, isNot(contains('{USER}')));
@@ -118,6 +159,7 @@ void main() {
     late LlamaController controller;
 
     setUp(() {
+      _setUpMockTemplateHost();
       controller = LlamaController();
     });
 
@@ -153,14 +195,18 @@ void main() {
 
 /// Example custom templates for testing
 class ExampleTemplates {
-  static const mistralInstruct = '<s>[INST]{system}\n\n{user}[/INST]{assistant}</s>';
-  static const chatML = '<|im_start|>system\n{system}<|im_end|>\n'
+  static const mistralInstruct =
+      '<s>[INST]{system}\n\n{user}[/INST]{assistant}</s>';
+  static const chatML =
+      '<|im_start|>system\n{system}<|im_end|>\n'
       '<|im_start|>user\n{user}<|im_end|>\n'
       '<|im_start|>assistant\n{assistant}<|im_end|>';
-  static const llama3 = '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n'
+  static const llama3 =
+      '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n'
       '{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n'
       '{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n'
       '{assistant}<|eot_id|>';
   static const simple = '{user}\n{assistant}\n';
-  static const alpaca = '### Instruction:\n{user}\n\n### Response:\n{assistant}';
+  static const alpaca =
+      '### Instruction:\n{user}\n\n### Response:\n{assistant}';
 }
