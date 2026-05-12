@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.arm.aichat"
-    compileSdk = 36
+    compileSdk = 37
 
-    ndkVersion = "29.0.13113456"
+    ndkVersion = "30.0.14904198"
 
     defaultConfig {
-        minSdk = 33
+        minSdk = 24
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -35,7 +35,7 @@ android {
             }
         }
         aarMetadata {
-            minCompileSdk = 35
+            minCompileSdk = 37
         }
     }
     externalNativeBuild {
@@ -45,14 +45,14 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlin {
-        jvmToolchain(17)
+        jvmToolchain(21)
 
         compileOptions {
-            targetCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_21
         }
     }
 
