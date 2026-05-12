@@ -18,6 +18,7 @@ android {
     
     // Target Android 15 with 16KB page size support
     compileSdk = 37
+    ndkVersion = "30.0.14904198"
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
