@@ -1,7 +1,7 @@
 import Flutter
 import Foundation
 
-public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiProtocol {
+public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApi {
 
     private var flutterApi: LlamaFlutterApi?
     private let wrapper = LlamaIosWrapper()
@@ -24,9 +24,9 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
         LlamaHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: instance)
     }
 
-    // MARK: - LlamaHostApiProtocol
+    // MARK: - LlamaHostApi
 
-    public func loadModel(config: ModelConfig, completion: @escaping (Result<Void, Error>) -> Void) {
+    func loadModel(config: ModelConfig, completion: @escaping (Result<Void, Error>) -> Void) {
         queue.async { [weak self] in
             guard let self = self else { return }
             do {
@@ -38,7 +38,7 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
                         nGpuLayers: Int32(config.nGpuLayers ?? 99),
                         progressCallback: { [weak self] progress in
                             DispatchQueue.main.async {
-                                self?.flutterApi?.onLoadProgress(progress) {}
+                                self?.flutterApi?.onLoadProgress(progress: progress) { _ in }
                             }
                         }
                     )
@@ -48,14 +48,14 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
                 DispatchQueue.main.async { completion(.success(())) }
             } catch {
                 DispatchQueue.main.async {
-                    self.flutterApi?.onError(error.localizedDescription) {}
+                    self.flutterApi?.onError(error: error.localizedDescription) { _ in }
                     completion(.failure(error))
                 }
             }
         }
     }
 
-    public func generate(request: GenerateRequest, completion: @escaping (Result<Void, Error>) -> Void) {
+    func generate(request: GenerateRequest, completion: @escaping (Result<Void, Error>) -> Void) {
         guard isModelLoaded_ else {
             completion(.failure(NSError(
                 domain: "LlamaPlugin", code: 1,
@@ -88,20 +88,20 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
                     ) { [weak self] token in
                         guard let self = self, !self.isStopping else { return }
                         DispatchQueue.main.async {
-                            self.flutterApi?.onToken(token) {}
+                            self.flutterApi?.onToken(token: token) { _ in }
                         }
                     }
                 }
                 if !self.isStopping {
                     DispatchQueue.main.async {
-                        self.flutterApi?.onDone {}
+                        self.flutterApi?.onDone { _ in }
                         completion(.success(()))
                     }
                 }
             } catch {
                 if !self.isStopping {
                     DispatchQueue.main.async {
-                        self.flutterApi?.onError(error.localizedDescription) {}
+                        self.flutterApi?.onError(error: error.localizedDescription) { _ in }
                         completion(.failure(error))
                     }
                 }
@@ -109,7 +109,7 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
         }
     }
 
-    public func generateChat(request: ChatRequest, completion: @escaping (Result<Void, Error>) -> Void) {
+    func generateChat(request: ChatRequest, completion: @escaping (Result<Void, Error>) -> Void) {
         guard isModelLoaded_ else {
             completion(.failure(NSError(
                 domain: "LlamaPlugin", code: 1,
@@ -147,17 +147,17 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
         generate(request: generateRequest, completion: completion)
     }
 
-    public func getSupportedTemplates() -> [String] {
+    func getSupportedTemplates() -> [String] {
         return ChatTemplateManager.shared.getSupportedTemplates()
     }
 
-    public func stop(completion: @escaping (Result<Void, Error>) -> Void) {
+    func stop(completion: @escaping (Result<Void, Error>) -> Void) {
         isStopping = true
         wrapper.stop()
         completion(.success(()))
     }
 
-    public func dispose(completion: @escaping (Result<Void, Error>) -> Void) {
+    func dispose(completion: @escaping (Result<Void, Error>) -> Void) {
         isStopping = true
         wrapper.stop()
         queue.async { [weak self] in
@@ -168,33 +168,44 @@ public class LlamaFlutterAndroidPlugin: NSObject, FlutterPlugin, LlamaHostApiPro
         }
     }
 
-    public func isModelLoaded() -> Bool {
+    func isModelLoaded() -> Bool {
         return isModelLoaded_
     }
 
-    public func getContextInfo() -> ContextInfo {
+    func getContextInfo() -> ContextInfo {
         let used = Int64(wrapper.tokensUsed())
         let size = Int64(wrapper.contextSize())
         let pct  = size > 0 ? (Double(used) / Double(size) * 100.0) : 0.0
         return ContextInfo(tokensUsed: used, contextSize: size, usagePercentage: pct)
     }
 
-    public func clearContext(completion: @escaping (Result<Void, Error>) -> Void) {
+    func clearContext(completion: @escaping (Result<Void, Error>) -> Void) {
         queue.async { [weak self] in
             self?.wrapper.clearContext()
             DispatchQueue.main.async { completion(.success(())) }
         }
     }
 
-    public func setSystemPromptLength(length: Int64) {
+    func setSystemPromptLength(length: Int64) {
         wrapper.setSystemPromptLength(Int32(length))
     }
 
-    public func registerCustomTemplate(name: String, content: String) {
+    func registerCustomTemplate(name: String, content: String) {
         ChatTemplateManager.shared.registerCustomTemplate(name: name, content: content)
     }
 
-    public func unregisterCustomTemplate(name: String) {
+    func unregisterCustomTemplate(name: String) {
         ChatTemplateManager.shared.unregisterCustomTemplate(name: name)
+    }
+
+    func detectGpu(completion: @escaping (Result<GpuInfo, Error>) -> Void) {
+        completion(.success(GpuInfo(
+            vulkanSupported: false,
+            gpuName: "Apple Metal",
+            vulkanApiVersion: -1,
+            deviceLocalMemoryBytes: -1,
+            freeRamBytes: -1,
+            recommendedGpuLayers: 99
+        )))
     }
 }

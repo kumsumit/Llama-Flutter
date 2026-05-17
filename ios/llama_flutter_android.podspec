@@ -10,6 +10,7 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '14.0'
   s.swift_version    = '5.0'
   s.dependency 'Flutter'
+  s.requires_arc     = false
 
   # Copy llama.cpp sources and preprocess the Metal shader.
   # The .metal file uses #include "ggml-common.h" (one dir up) and
@@ -34,17 +35,20 @@ Pod::Spec.new do |s|
     METAL_SRC="$METAL_DIR/ggml-metal.metal"
     METAL_OUT="$METAL_DIR/ggml-metal-ios.metal"
 
+    printf '#define GGML_METAL_EMBED_LIBRARY\n' > "${METAL_OUT}.src"
+    cat "$METAL_SRC" >> "${METAL_OUT}.src"
+
     # Step 1: replace __embed_ggml-common.h__ with the file contents
     sed -e "/__embed_ggml-common.h__/r $COMMON_H" \
         -e "/__embed_ggml-common.h__/d" \
-        < "$METAL_SRC" > "${METAL_OUT}.tmp"
+        < "${METAL_OUT}.src" > "${METAL_OUT}.tmp"
 
     # Step 2: inline ggml-metal-impl.h
     sed -e "/#include \"ggml-metal-impl.h\"/r $IMPL_H" \
         -e "/#include \"ggml-metal-impl.h\"/d" \
         < "${METAL_OUT}.tmp" > "$METAL_OUT"
 
-    rm -f "${METAL_OUT}.tmp"
+    rm -f "${METAL_OUT}.src" "${METAL_OUT}.tmp"
   CMD
 
   llama_root = '$(PODS_TARGET_SRCROOT)/llama_cpp_src'
@@ -52,10 +56,13 @@ Pod::Spec.new do |s|
   s.source_files = [
     'Classes/**/*.{swift,h,m,mm}',
     'llama_cpp_src/src/*.cpp',
+    'llama_cpp_src/src/models/*.cpp',
     'llama_cpp_src/ggml/src/ggml.c',
     'llama_cpp_src/ggml/src/ggml.cpp',
     'llama_cpp_src/ggml/src/ggml-alloc.c',
     'llama_cpp_src/ggml/src/ggml-backend.cpp',
+    'llama_cpp_src/ggml/src/ggml-backend-dl.cpp',
+    'llama_cpp_src/ggml/src/ggml-backend-meta.cpp',
     'llama_cpp_src/ggml/src/ggml-backend-reg.cpp',
     'llama_cpp_src/ggml/src/ggml-opt.cpp',
     'llama_cpp_src/ggml/src/ggml-quants.c',
@@ -65,8 +72,13 @@ Pod::Spec.new do |s|
     'llama_cpp_src/ggml/src/ggml-cpu/ggml-cpu.cpp',
     'llama_cpp_src/ggml/src/ggml-cpu/quants.c',
     'llama_cpp_src/ggml/src/ggml-cpu/binary-ops.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/hbm.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/llamafile/sgemm.cpp',
     'llama_cpp_src/ggml/src/ggml-cpu/ops.cpp',
     'llama_cpp_src/ggml/src/ggml-cpu/repack.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/traits.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/unary-ops.cpp',
+    'llama_cpp_src/ggml/src/ggml-cpu/vec.cpp',
     'llama_cpp_src/ggml/src/ggml-metal/ggml-metal.cpp',
     'llama_cpp_src/ggml/src/ggml-metal/ggml-metal-common.cpp',
     'llama_cpp_src/ggml/src/ggml-metal/ggml-metal-device.cpp',
@@ -86,8 +98,8 @@ Pod::Spec.new do |s|
 
   s.pod_target_xcconfig = {
     'GCC_PREPROCESSOR_DEFINITIONS'  => '$(inherited) GGML_USE_METAL=1 NDEBUG=1',
-    'OTHER_CPLUSPLUSFLAGS'          => '$(inherited) -std=c++17 -O3 -DNDEBUG -DGGML_USE_METAL=1',
-    'OTHER_CFLAGS'                  => '$(inherited) -O3 -DNDEBUG -DGGML_USE_METAL=1',
+    'OTHER_CPLUSPLUSFLAGS'          => '$(inherited) -std=c++17 -O3 -DNDEBUG -DGGML_USE_METAL=1 -DGGML_CPU_GENERIC=1 -DGGML_VERSION=\"0.9.11\" -DGGML_COMMIT=\"unknown\"',
+    'OTHER_CFLAGS'                  => '$(inherited) -O3 -DNDEBUG -DGGML_USE_METAL=1 -DGGML_CPU_GENERIC=1 -DGGML_VERSION=\"0.9.11\" -DGGML_COMMIT=\"unknown\"',
     'CLANG_CXX_LANGUAGE_STANDARD'  => 'c++17',
     'HEADER_SEARCH_PATHS'           => [
       "#{llama_root}/include",
