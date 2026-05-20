@@ -1,4 +1,6 @@
+import com.android.build.api.dsl.LibraryExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     id("com.android.library")
@@ -13,7 +15,7 @@ repositories {
     mavenCentral()
 }
 
-android {
+extensions.configure<LibraryExtension>("android") {
 
     namespace = "com.write4me.llama_flutter_android"
 
@@ -63,11 +65,15 @@ android {
     sourceSets {
 
         getByName("main") {
-            java.srcDirs("src/main/kotlin")
+            java.directories.add(
+                project.layout.projectDirectory.dir("src/main/kotlin")
+            )
         }
 
         getByName("test") {
-            java.srcDirs("src/test/kotlin")
+            java.directories.add(
+                project.layout.projectDirectory.dir("src/test/kotlin")
+            )
         }
     }
 
@@ -80,7 +86,8 @@ android {
 
     testOptions {
         unitTests.all {
-            useJUnitPlatform()
+            it as Test
+            it.useJUnitPlatform()
         }
     }
 }
@@ -97,5 +104,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation(kotlin("test"))
+
+    // JUnit 5
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.4")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.13.4")
+
     testImplementation("org.mockito:mockito-core:5.23.0")
 }
