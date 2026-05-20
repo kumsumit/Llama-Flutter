@@ -1,1 +1,1 @@
-rootProject.name = 'llama_flutter_android'
+rootProject.name = "llama_flutter_android"
