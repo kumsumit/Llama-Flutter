@@ -1,10 +1,8 @@
 import com.android.build.api.dsl.LibraryExtension
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
 
 plugins {
     id("com.android.library")
-    kotlin("android")
 }
 
 group = "com.write4me.llama_flutter_android"
@@ -80,11 +78,6 @@ extensions.configure<LibraryExtension>("android") {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
-    }
-}
 
 dependencies {
 
