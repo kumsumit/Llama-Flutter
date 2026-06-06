@@ -60,8 +60,8 @@ extensions.configure<LibraryExtension>("android") {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-   sourceSets["main"].java.srcDir("src/main/kotlin")
-   sourceSets["test"].java.srcDir("src/test/kotlin")
+   sourceSets["main"].java.directories.add("src/main/kotlin")
+   sourceSets["test"].java.directories.add("src/test/kotlin")
 
     externalNativeBuild {
         cmake {
