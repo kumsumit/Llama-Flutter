@@ -16,8 +16,6 @@ repositories {
 extensions.configure<LibraryExtension>("android") {
 
     namespace = "com.write4me.llama_flutter_android"
-
-    // Android 15
     compileSdk = 37
 
     ndkVersion = "30.0.14904198"
@@ -77,7 +75,6 @@ extensions.configure<LibraryExtension>("android") {
         }
     }
 }
-
 
 dependencies {
 

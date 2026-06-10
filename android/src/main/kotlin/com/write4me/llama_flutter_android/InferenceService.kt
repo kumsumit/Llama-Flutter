@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -28,9 +29,22 @@ class InferenceService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification().build()
-        startForeground(notificationId, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(
+                    notificationId,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(notificationId, notification)
+            }
+        } catch (e: Exception) {
+            // Never let a foreground-service failure crash the host app.
+            stopSelf()
+        }
 
-        return START_STICKY  // Restart if killed
+        return START_NOT_STICKY  // don't auto-restart when there's no active inference
     }
 
     override fun onBind(intent: Intent?): IBinder {

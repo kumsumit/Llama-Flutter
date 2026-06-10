@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base permission required by startForeground() since Android 9 (API 28). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Type permission required for specialUse foreground services on Android 14+ (API 34). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     
     <application>
