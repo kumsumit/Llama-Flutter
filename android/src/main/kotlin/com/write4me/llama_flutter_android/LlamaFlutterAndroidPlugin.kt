@@ -3,6 +3,7 @@ package com.write4me.llama_flutter_android
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.coroutines.*
@@ -18,10 +19,24 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     private var currentModelPath: String? = null
 
     companion object {
-        init {
+        private const val TAG = "LlamaFlutterPlugin"
+        private val nativeLoadError: Throwable? = try {
             System.loadLibrary("llama_jni")
+            null
+        } catch (error: Throwable) {
+            Log.w(TAG, "llama_jni is unavailable; AI inference is disabled.", error)
+            error
         }
     }
+
+    private val isNativeAvailable: Boolean
+        get() = nativeLoadError == null
+
+    private fun nativeUnavailableException(): IllegalStateException =
+        IllegalStateException(
+            "On-device AI is unavailable on this device/ABI because libllama_jni.so could not be loaded.",
+            nativeLoadError
+        )
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -31,13 +46,18 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         scope.cancel()
-        if (isModelLoaded.get()) {
+        if (isNativeAvailable && isModelLoaded.get()) {
             nativeFreeModel()
         }
         LlamaHostApi.setUp(binding.binaryMessenger, null)
     }
 
     override fun loadModel(config: ModelConfig, callback: (Result<Unit>) -> Unit) {
+        if (!isNativeAvailable) {
+            callback(Result.failure(nativeUnavailableException()))
+            return
+        }
+
         scope.launch {
             try {
                 // Start foreground service for long-running task
@@ -65,7 +85,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 scope.launch {
                     withContext(Dispatchers.Main) {
                         flutterApi.onError(e.message ?: "Failed to load model") { result ->
@@ -79,6 +99,11 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun generate(request: GenerateRequest, callback: (Result<Unit>) -> Unit) {
+        if (!isNativeAvailable) {
+            callback(Result.failure(nativeUnavailableException()))
+            return
+        }
+
         if (!isModelLoaded.get()) {
             callback(Result.failure(IllegalStateException("Model not loaded")))
             return
@@ -129,7 +154,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 if (!isStopping.get()) {
                     scope.launch {
                         withContext(Dispatchers.Main) {
@@ -147,7 +172,9 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     override fun stop(callback: (Result<Unit>) -> Unit) {
         isStopping.set(true)
         generationJob?.cancel()
-        nativeStop()
+        if (isNativeAvailable) {
+            nativeStop()
+        }
         callback(Result.success(Unit))
     }
 
@@ -155,7 +182,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
         scope.launch {
             try {
                 stop { }
-                if (isModelLoaded.get()) {
+                if (isNativeAvailable && isModelLoaded.get()) {
                     nativeFreeModel()
                     isModelLoaded.set(false)
                 }
@@ -167,7 +194,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
                     callback(Result.failure(e))
                 }
@@ -176,6 +203,11 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun generateChat(request: ChatRequest, callback: (Result<Unit>) -> Unit) {
+        if (!isNativeAvailable) {
+            callback(Result.failure(nativeUnavailableException()))
+            return
+        }
+
         if (!isModelLoaded.get()) {
             callback(Result.failure(IllegalStateException("Model not loaded")))
             return
@@ -233,7 +265,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 if (!isStopping.get()) {
                     scope.launch {
                         withContext(Dispatchers.Main) {
@@ -253,10 +285,18 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun isModelLoaded(): Boolean {
-        return isModelLoaded.get()
+        return isNativeAvailable && isModelLoaded.get()
     }
 
     override fun getContextInfo(): ContextInfo {
+        if (!isNativeAvailable) {
+            return ContextInfo(
+                tokensUsed = 0L,
+                contextSize = 0L,
+                usagePercentage = 0.0
+            )
+        }
+
         val tokensUsed = nativeGetTokensUsed().toLong()
         val contextSize = nativeGetContextSize().toLong()
         val usagePercentage = if (contextSize > 0) {
@@ -273,13 +313,18 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun clearContext(callback: (Result<Unit>) -> Unit) {
+        if (!isNativeAvailable) {
+            callback(Result.failure(nativeUnavailableException()))
+            return
+        }
+
         scope.launch {
             try {
                 nativeClearContext()
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
                     callback(Result.failure(e))
                 }
@@ -288,6 +333,9 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun setSystemPromptLength(length: Long) {
+        if (!isNativeAvailable) {
+            return
+        }
         nativeSetSystemPromptLength(length.toInt())
     }
 
@@ -308,6 +356,18 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
     }
 
     override fun detectGpu(callback: (Result<GpuInfo>) -> Unit) {
+        if (!isNativeAvailable) {
+            callback(Result.success(GpuInfo(
+                vulkanSupported = false,
+                gpuName = "None",
+                vulkanApiVersion = -1L,
+                deviceLocalMemoryBytes = -1L,
+                freeRamBytes = -1L,
+                recommendedGpuLayers = 0L
+            )))
+            return
+        }
+
         scope.launch {
             try {
                 val outStats = LongArray(2) { -1L }
@@ -338,7 +398,7 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi {
                         recommendedGpuLayers = recommendedGpuLayers.toLong()
                     )))
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(GpuInfo(
                         vulkanSupported = false,
